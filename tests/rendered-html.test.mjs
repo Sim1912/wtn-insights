@@ -27,7 +27,7 @@ test("renders WTN Insights metadata and the loading dashboard shell", async () =
     /^text\/html\b/i,
   );
   const html = await response.text();
-  assert.match(html, /<title>WTN Insights — Every match, the full story<\/title>/i);
+  assert.match(html, /<title>WTN Insights — Ratings, matches and analytics<\/title>/i);
   assert.match(html, /<meta(?=[^>]*property=["']og:image["'])[^>]*>/i);
   assert.match(html, /Load another Tennis ID/i);
   assert.match(html, /Loading player ratings/i);
@@ -43,7 +43,8 @@ test("renders the analytics route directly", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /Loading analytics/i);
-  assert.match(html, /Analytics/i);
+  assert.match(html, /<a(?=[^>]*href=["']\/analytics\?tennisId=MAU8054205["'])(?=[^>]*aria-current=["']page["'])[^>]*>/i);
+  assert.doesNotMatch(html, /<a(?=[^>]*href=["']\/\?tennisId=MAU8054205["'])(?=[^>]*aria-current=["']page["'])[^>]*>/i);
 });
 
 test("renders the matches route with Matches as the active destination", async () => {
@@ -57,4 +58,5 @@ test("renders the matches route with Matches as the active destination", async (
   const html = await response.text();
   assert.match(html, /<a(?=[^>]*href=["']\/matches\?tennisId=MAU8054205["'])(?=[^>]*aria-current=["']page["'])[^>]*>/i);
   assert.doesNotMatch(html, /<a(?=[^>]*href=["']\/\?tennisId=MAU8054205["'])(?=[^>]*aria-current=["']page["'])[^>]*>/i);
+  assert.match(html, /Loading match history/i);
 });

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { filterRatingPeriod, ratingDomain, type ChartRatingPoint, type RatingPeriod } from "@/lib/wtn/rating-utils";
 import type { RatingPoint } from "@/lib/wtn/types";
+import { ChartEntrance, useReducedMotion } from "@/components/ui/Motion";
 
 type Series = "singles" | "doubles";
 type TooltipEntry = { payload?: ChartRatingPoint };
@@ -39,7 +40,7 @@ function RatingDot(props: { cx?: number; cy?: number; payload?: ChartRatingPoint
   const latest = payload.date === latestDate;
   return <g className={latest ? "rating-dot latest" : "rating-dot"}>
     {latest && <circle cx={cx} cy={cy} r="8" fill={color} opacity=".18" />}
-    <circle cx={cx} cy={cy} r={latest ? 4.5 : 3} fill={color} stroke="#fff" strokeWidth="2" />
+    <circle cx={cx} cy={cy} r={latest ? 4.5 : 3} fill={color} stroke="var(--color-surface)" strokeWidth="2" />
   </g>;
 }
 
@@ -53,6 +54,7 @@ export function RatingChart({
   onSeriesChange: (series: Series) => void;
 }) {
   const [period, setPeriod] = useState<RatingPeriod>("1y");
+  const reducedMotion = useReducedMotion();
   const seriesPoints = history[series];
   const visiblePoints = useMemo(() => filterRatingPeriod(seriesPoints, period), [seriesPoints, period]);
   const chartPoints = useMemo(
@@ -61,7 +63,7 @@ export function RatingChart({
   );
   const domain = useMemo(() => ratingDomain(visiblePoints), [visiblePoints]);
   const trend = visiblePoints.length > 1 ? visiblePoints.at(-1)!.value - visiblePoints[0].value : null;
-  const color = series === "singles" ? "#b7dc22" : "#6e91d9";
+  const color = series === "singles" ? "var(--color-chart-primary)" : "var(--color-chart-secondary)";
   const latestDate = visiblePoints.at(-1)?.date ?? "";
 
   return <section className="rating-panel" aria-label="Interactive rating history">
@@ -79,15 +81,15 @@ export function RatingChart({
     </div>
     <div className="chart-frame">
       <span className="stronger-label">Stronger ↑ <small>lower WTN</small></span>
-      {visiblePoints.length ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
+      {visiblePoints.length ? <ChartEntrance><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
         <LineChart data={chartPoints} accessibilityLayer margin={{ top: 34, right: 18, bottom: 3, left: 0 }}>
-          <CartesianGrid vertical={false} stroke="#e2e6dd" strokeDasharray="3 7" />
-          <XAxis dataKey="timestamp" type="number" domain={["dataMin", "dataMax"]} scale="time" tickFormatter={(value) => axisDateFormatter.format(new Date(value))} tickLine={false} axisLine={false} minTickGap={52} tick={{ fill: "#626b5e", fontSize: 11 }} dy={9} />
-          <YAxis reversed domain={domain} width={46} tickCount={5} tickFormatter={(value: number) => value.toFixed(1)} tickLine={false} axisLine={false} tick={{ fill: "#626b5e", fontSize: 11 }} />
-          <Tooltip content={(props) => <RatingTooltip active={props.active} payload={props.payload as TooltipEntry[]} series={series} />} isAnimationActive="auto" allowEscapeViewBox={{ x: false, y: false }} reverseDirection={{ x: true, y: false }} cursor={{ stroke: "#9da695", strokeDasharray: "3 4" }} />
-          <Line name={`${series} WTN`} dataKey="value" type="linear" stroke={color} strokeWidth={3} connectNulls isAnimationActive="auto" animationDuration={180} dot={(props) => <RatingDot {...props} latestDate={latestDate} color={color} />} activeDot={{ r: 6, stroke: "#11140f", strokeWidth: 2, fill: color }} />
+          <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 7" />
+          <XAxis dataKey="timestamp" type="number" domain={["dataMin", "dataMax"]} scale="time" tickFormatter={(value) => axisDateFormatter.format(new Date(value))} tickLine={false} axisLine={false} minTickGap={52} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} dy={9} />
+          <YAxis reversed domain={domain} width={46} tickCount={5} tickFormatter={(value: number) => value.toFixed(1)} tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+          <Tooltip content={(props) => <RatingTooltip active={props.active} payload={props.payload as TooltipEntry[]} series={series} />} isAnimationActive={!reducedMotion} allowEscapeViewBox={{ x: false, y: false }} reverseDirection={{ x: true, y: false }} cursor={{ stroke: "var(--color-text-tertiary)", strokeDasharray: "3 4" }} />
+          <Line name={`${series} WTN`} dataKey="value" type="linear" stroke={color} strokeWidth={3} connectNulls isAnimationActive={!reducedMotion} animationDuration={680} dot={(props) => <RatingDot {...props} latestDate={latestDate} color={color} />} activeDot={{ r: 6, stroke: "var(--color-text-primary)", strokeWidth: 2, fill: color }} />
         </LineChart>
-      </ResponsiveContainer> : <div className="chart-empty">No rating updates in this period.</div>}
+      </ResponsiveContainer></ChartEntrance> : <div className="chart-empty">No rating updates in this period.</div>}
     </div>
   </section>;
 }
