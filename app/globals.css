@@ -289,8 +289,8 @@ nav {
   font-variant-numeric: tabular-nums;
 }
 .rating-card.primary .rating-value-row strong { color: var(--acid); }
-.rating-value-row span { margin-bottom: 4px; color: var(--subtle); font-size: 10px; white-space: nowrap; }
-.rating-card.primary .rating-value-row span { color: #aeb5a8; }
+.rating-value-row > span { margin-bottom: 4px; color: var(--subtle); font-size: 10px; white-space: nowrap; }
+.rating-card.primary .rating-value-row > span { color: #aeb5a8; }
 .rating-change { display: flex; align-items: center; gap: 7px; font-size: 11px; }
 .rating-change b { font-variant-numeric: tabular-nums; }
 .rating-change span { color: var(--subtle); }
@@ -1031,7 +1031,7 @@ nav {
   .rating-card { min-height: 118px; padding: 15px; }
   .rating-value-row { display: block; }
   .rating-value-row strong { font-size: 39px; }
-  .rating-value-row span { display: block; margin-top: 5px; white-space: normal; }
+  .rating-value-row > span { display: block; margin-top: 5px; white-space: normal; }
   .rating-panel { margin-top: 8px; padding: 17px 10px 13px; }
   .rating-chart-header { padding-inline: 6px; }
   .rating-chart-header h2 { font-size: 18px; }
@@ -1140,7 +1140,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .rating-card > p { color: var(--color-text-secondary); font-size: 9px; font-weight: 620; letter-spacing: .1em; }
 .rating-value-row strong { font-size: clamp(46px, 6vw, 68px); font-weight: 570; letter-spacing: -.06em; }
 .rating-card.primary .rating-value-row strong { color: var(--color-accent); }
-.rating-value-row span { color: var(--color-text-tertiary); font-size: 9px; }
+.rating-value-row > span { color: var(--color-text-tertiary); font-size: 9px; }
 .rating-change { font-size: 10px; }
 .rating-panel { margin-top: 0; padding: var(--space-6) var(--space-6) var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-large); background: var(--color-surface); box-shadow: none; }
 .rating-chart-header h2 { font-size: 18px; font-weight: 590; letter-spacing: -.02em; }
