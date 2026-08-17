@@ -131,7 +131,7 @@ export function AnalyticsPage() {
       <a className="brand" href={`/?tennisId=${encodeURIComponent(playerId)}`} aria-label="WTN Insights home"><span>W</span> WTN Insights</a>
       <div className="navlinks" aria-label="Dashboard sections">
         <a href={`/?tennisId=${encodeURIComponent(playerId)}`}>Overview</a>
-        <a href={`/?tennisId=${encodeURIComponent(playerId)}&view=matches`}>Matches</a>
+        <a href={`/matches?tennisId=${encodeURIComponent(playerId)}`}>Matches</a>
         <a className="active" aria-current="page" href={`/analytics?tennisId=${encodeURIComponent(playerId)}`}>Analytics</a>
       </div>
     </nav>

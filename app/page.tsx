@@ -29,14 +29,13 @@ function OverviewSkeleton() {
   </div>;
 }
 
-export default function Home() {
+export function Dashboard({ initialTab }: { initialTab: "overview" | "matches" }) {
   const [data, setData] = useState<WtnApiResponse | null>(null);
   const dataRef = useRef<WtnApiResponse | null>(null);
   const [playerId, setPlayerId] = useState(() => initialParameter("tennisId")?.trim().toUpperCase() || DEFAULT_TENNIS_ID);
   const [status, setStatus] = useState<"loading" | "live" | "error">("loading");
   const [message, setMessage] = useState("Loading player…");
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
-  const [tab, setTab] = useState<"overview" | "matches">(() => initialParameter("view") === "matches" ? "matches" : "overview");
   const [series, setSeries] = useState<"singles" | "doubles">("singles");
 
   const loadPlayer = useCallback(async (tennisId: string) => {
@@ -86,10 +85,10 @@ export default function Home() {
 
   return <main className={status === "loading" && data ? "is-refreshing" : ""} aria-busy={status === "loading"}>
     <nav>
-      <a className="brand" href="#top" aria-label="WTN Insights home"><span>W</span> WTN Insights</a>
+      <a className="brand" href={`/?tennisId=${encodeURIComponent(playerId)}`} aria-label="WTN Insights home"><span>W</span> WTN Insights</a>
       <div className="navlinks" aria-label="Dashboard sections">
-        <button aria-pressed={tab === "overview"} className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Overview</button>
-        <button aria-pressed={tab === "matches"} className={tab === "matches" ? "active" : ""} onClick={() => setTab("matches")}>Matches</button>
+        <a aria-current={initialTab === "overview" ? "page" : undefined} className={initialTab === "overview" ? "active" : ""} href={`/?tennisId=${encodeURIComponent(playerId)}`}>Overview</a>
+        <a aria-current={initialTab === "matches" ? "page" : undefined} className={initialTab === "matches" ? "active" : ""} href={`/matches?tennisId=${encodeURIComponent(playerId)}`}>Matches</a>
         <a href={`/analytics?tennisId=${encodeURIComponent(playerId)}`}>Analytics</a>
       </div>
     </nav>
@@ -111,7 +110,7 @@ export default function Home() {
     {process.env.NODE_ENV === "development" && diagnostic && <details className="diagnostic shell"><summary>Development API diagnostic</summary><code>{diagnostic}</code></details>}
 
     {!data && status === "error" ? <section className="load-error shell"><strong>Player data could not be loaded.</strong><p>{message}</p><button type="button" onClick={() => void loadPlayer(playerId)}>Try again</button></section>
-      : tab === "overview" ? <div className="shell content overview-content">
+      : initialTab === "overview" ? <div className="shell content overview-content">
         {data && ratings ? <>
           <section className="rating-grid">
             <RatingCard title="Singles WTN" value={ratings.singles} change={ratings.singlesChange} confidence={ratings.singlesConfidence} primary />
@@ -121,4 +120,8 @@ export default function Home() {
         </> : <OverviewSkeleton />}
       </div> : <div className="shell content">{data && player ? <MatchHistory key={player.id} matches={data.matches} player={player} loading={status === "loading"} /> : <OverviewSkeleton />}</div>}
   </main>;
+}
+
+export default function Home() {
+  return <Dashboard initialTab="overview" />;
 }
