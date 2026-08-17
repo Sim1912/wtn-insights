@@ -21,6 +21,13 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof WtnRequestError ? error.message : "Unable to load WTN data right now.";
+    console.error("WTN dashboard request failed", {
+      tennisId,
+      message,
+      diagnostic: error instanceof WtnRequestError
+        ? error.diagnostics
+        : error instanceof Error ? error.message : "Unknown server error",
+    });
     const body: { error: string; diagnostic?: string } = { error: message };
     if (process.env.NODE_ENV === "development") {
       body.diagnostic = error instanceof WtnRequestError
