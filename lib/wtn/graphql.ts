@@ -1,6 +1,6 @@
 import type { RawWtnPayload } from "./types";
 
-const DEFAULT_ENDPOINT = "https://prd-itf-kube.clubspark.pro/tods-gw-api/graphql";
+export const DEFAULT_ENDPOINT = "https://prd-itf-kube.clubspark.pro/tods-gw-api/graphql";
 
 export const WTN_QUERY = `query WtnDashboard($tennisId: ID!, $personId: PersonIDInput!, $start: String, $end: String) {
   player: person(id: $personId) {
@@ -100,13 +100,18 @@ export class WtnRequestError extends Error {
   }
 }
 
-export async function fetchWtnDashboard(tennisId: string): Promise<RawWtnPayload> {
-  const endpoint = process.env.WTN_GRAPHQL_ENDPOINT || DEFAULT_ENDPOINT;
+async function fetchWtnDashboardFromEndpoint(
+  tennisId: string,
+  endpoint: string,
+  externalSignal?: AbortSignal,
+): Promise<RawWtnPayload> {
   const end = new Date();
   const start = new Date(end);
   start.setFullYear(start.getFullYear() - 3);
 
   const controller = new AbortController();
+  const abortFromCaller = () => controller.abort();
+  externalSignal?.addEventListener("abort", abortFromCaller, { once: true });
   const timeout = setTimeout(() => controller.abort(), 12_000);
   try {
     const response = await fetch(endpoint, {
@@ -157,6 +162,7 @@ export async function fetchWtnDashboard(tennisId: string): Promise<RawWtnPayload
     }
     return payload.data;
   } catch (error) {
+    if (externalSignal?.aborted) throw error;
     if (error instanceof WtnRequestError) throw error;
     if (error instanceof Error && error.name === "AbortError") {
       throw new WtnRequestError("WTN took too long to respond. Please try again.", "WTN request exceeded the 12 second timeout.");
@@ -167,5 +173,14 @@ export async function fetchWtnDashboard(tennisId: string): Promise<RawWtnPayload
     );
   } finally {
     clearTimeout(timeout);
+    externalSignal?.removeEventListener("abort", abortFromCaller);
   }
+}
+
+export async function fetchPublicWtnDashboard(tennisId: string, signal?: AbortSignal): Promise<RawWtnPayload> {
+  return fetchWtnDashboardFromEndpoint(tennisId, DEFAULT_ENDPOINT, signal);
+}
+
+export async function fetchWtnDashboard(tennisId: string): Promise<RawWtnPayload> {
+  return fetchWtnDashboardFromEndpoint(tennisId, process.env.WTN_GRAPHQL_ENDPOINT || DEFAULT_ENDPOINT);
 }

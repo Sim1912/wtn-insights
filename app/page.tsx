@@ -3,6 +3,8 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { MatchHistory } from "@/components/matches/MatchHistory";
 import { RatingChart } from "@/components/ratings/RatingChart";
+import { fetchPublicWtnDashboard } from "@/lib/wtn/graphql";
+import { normalizeWtnResponse } from "@/lib/wtn/normalize-match";
 import type { WtnApiResponse } from "@/lib/wtn/types";
 
 const DEFAULT_TENNIS_ID = "MAU8054205";
@@ -27,6 +29,26 @@ function OverviewSkeleton() {
   </div>;
 }
 
+async function requestPlayer(tennisId: string, signal?: AbortSignal): Promise<WtnApiResponse> {
+  const normalizedId = tennisId.trim().toUpperCase();
+  const response = await fetch(`/api/wtn?tennisId=${encodeURIComponent(normalizedId)}`, { signal });
+  const body = await response.json() as WtnApiResponse & { error?: string; diagnostic?: string };
+  if (response.ok) return body;
+
+  const serverError = Object.assign(new Error(body.error || "WTN request failed."), { diagnostic: body.diagnostic });
+  if (response.status !== 502) throw serverError;
+
+  try {
+    const payload = await fetchPublicWtnDashboard(normalizedId, signal);
+    const ratings = payload.ratings ?? [];
+    if (!payload.player && !ratings.length) throw new Error("No WTN player was found for that Tennis ID.");
+    return normalizeWtnResponse(normalizedId, payload.player, ratings);
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw serverError;
+  }
+}
+
 export default function Home() {
   const [data, setData] = useState<WtnApiResponse | null>(null);
   const dataRef = useRef<WtnApiResponse | null>(null);
@@ -42,9 +64,7 @@ export default function Home() {
     setMessage(dataRef.current ? "Refreshing player…" : "Loading player…");
     setDiagnostic(null);
     try {
-      const response = await fetch(`/api/wtn?tennisId=${encodeURIComponent(tennisId.trim())}`);
-      const body = await response.json() as WtnApiResponse & { error?: string; diagnostic?: string };
-      if (!response.ok) throw Object.assign(new Error(body.error || "WTN request failed."), { diagnostic: body.diagnostic });
+      const body = await requestPlayer(tennisId);
       dataRef.current = body;
       setData(body);
       setPlayerId(body.player.id);
@@ -61,9 +81,7 @@ export default function Home() {
     const controller = new AbortController();
     void (async () => {
       try {
-        const response = await fetch(`/api/wtn?tennisId=${DEFAULT_TENNIS_ID}`, { signal: controller.signal });
-        const body = await response.json() as WtnApiResponse & { error?: string; diagnostic?: string };
-        if (!response.ok) throw Object.assign(new Error(body.error || "WTN request failed."), { diagnostic: body.diagnostic });
+        const body = await requestPlayer(DEFAULT_TENNIS_ID, controller.signal);
         dataRef.current = body;
         setData(body);
         setPlayerId(body.player.id);
