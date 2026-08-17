@@ -3,12 +3,12 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { MatchHistory } from "@/components/matches/MatchHistory";
 import { RatingChart } from "@/components/ratings/RatingChart";
-import { fetchPublicWtnDashboard } from "@/lib/wtn/graphql";
-import { normalizeWtnResponse } from "@/lib/wtn/normalize-match";
+import { requestPlayer } from "@/lib/wtn/client";
 import type { WtnApiResponse } from "@/lib/wtn/types";
 
 const DEFAULT_TENNIS_ID = "MAU8054205";
 const dateFormatter = new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric" });
+const initialParameter = (key: string) => typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get(key);
 
 function displayDate(value: string | null | undefined) {
   return value ? dateFormatter.format(new Date(value)) : null;
@@ -29,34 +29,14 @@ function OverviewSkeleton() {
   </div>;
 }
 
-async function requestPlayer(tennisId: string, signal?: AbortSignal): Promise<WtnApiResponse> {
-  const normalizedId = tennisId.trim().toUpperCase();
-  const response = await fetch(`/api/wtn?tennisId=${encodeURIComponent(normalizedId)}`, { signal });
-  const body = await response.json() as WtnApiResponse & { error?: string; diagnostic?: string };
-  if (response.ok) return body;
-
-  const serverError = Object.assign(new Error(body.error || "WTN request failed."), { diagnostic: body.diagnostic });
-  if (response.status !== 502) throw serverError;
-
-  try {
-    const payload = await fetchPublicWtnDashboard(normalizedId, signal);
-    const ratings = payload.ratings ?? [];
-    if (!payload.player && !ratings.length) throw new Error("No WTN player was found for that Tennis ID.");
-    return normalizeWtnResponse(normalizedId, payload.player, ratings);
-  } catch (error) {
-    if (signal?.aborted) throw error;
-    throw serverError;
-  }
-}
-
 export default function Home() {
   const [data, setData] = useState<WtnApiResponse | null>(null);
   const dataRef = useRef<WtnApiResponse | null>(null);
-  const [playerId, setPlayerId] = useState(DEFAULT_TENNIS_ID);
+  const [playerId, setPlayerId] = useState(() => initialParameter("tennisId")?.trim().toUpperCase() || DEFAULT_TENNIS_ID);
   const [status, setStatus] = useState<"loading" | "live" | "error">("loading");
   const [message, setMessage] = useState("Loading player…");
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
-  const [tab, setTab] = useState<"overview" | "matches">("overview");
+  const [tab, setTab] = useState<"overview" | "matches">(() => initialParameter("view") === "matches" ? "matches" : "overview");
   const [series, setSeries] = useState<"singles" | "doubles">("singles");
 
   const loadPlayer = useCallback(async (tennisId: string) => {
@@ -79,9 +59,11 @@ export default function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
+    const parameters = new URLSearchParams(window.location.search);
+    const requestedId = parameters.get("tennisId")?.trim().toUpperCase() || DEFAULT_TENNIS_ID;
     void (async () => {
       try {
-        const body = await requestPlayer(DEFAULT_TENNIS_ID, controller.signal);
+        const body = await requestPlayer(requestedId, controller.signal);
         dataRef.current = body;
         setData(body);
         setPlayerId(body.player.id);
@@ -108,6 +90,7 @@ export default function Home() {
       <div className="navlinks" aria-label="Dashboard sections">
         <button aria-pressed={tab === "overview"} className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Overview</button>
         <button aria-pressed={tab === "matches"} className={tab === "matches" ? "active" : ""} onClick={() => setTab("matches")}>Matches</button>
+        <a href={`/analytics?tennisId=${encodeURIComponent(playerId)}`}>Analytics</a>
       </div>
     </nav>
 
