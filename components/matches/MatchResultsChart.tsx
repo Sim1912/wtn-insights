@@ -25,7 +25,7 @@ export function MatchResultsChart({ matches }: { matches: NormalizedMatch[] }) {
   const data = useMemo(() => monthlyResults(matches), [matches]);
   if (matches.filter((match) => match.date && match.result !== "unknown").length < 3 || data.length < 2) return null;
   return <section className="results-chart-panel" aria-label="Filtered results over time">
-    <header><div><p className="eyebrow">FILTERED FORM</p><h3>Wins and losses over time</h3></div><span>{matches.length} matching</span></header>
+    <header><h3>Wins and losses over time</h3></header>
     <div className="results-chart-frame">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={180}>
         <BarChart data={data} accessibilityLayer margin={{ top: 10, right: 6, bottom: 0, left: -24 }} barCategoryGap="32%">

@@ -66,7 +66,7 @@ export function RatingChart({
 
   return <section className="rating-panel" aria-label="Interactive rating history">
     <header className="rating-chart-header">
-      <div><p className="eyebrow">RATING HISTORY</p><h2>{series === "singles" ? "Singles" : "Doubles"} development</h2></div>
+      <h2>{series === "singles" ? "Singles" : "Doubles"} development</h2>
       <div className="series-switch" aria-label="Rating type">
         {(["singles", "doubles"] as const).map((value) => <button type="button" key={value} aria-pressed={series === value} className={series === value ? "active" : ""} onClick={() => onSeriesChange(value)}>{value === "singles" ? "Singles" : "Doubles"}</button>)}
       </div>
@@ -89,6 +89,5 @@ export function RatingChart({
         </LineChart>
       </ResponsiveContainer> : <div className="chart-empty">No rating updates in this period.</div>}
     </div>
-    <p className="chart-interaction-hint">Hover or tap a point. Keyboard users can focus the chart and use the arrow keys.</p>
   </section>;
 }

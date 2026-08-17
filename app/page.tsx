@@ -109,7 +109,6 @@ export default function Home() {
         <button aria-pressed={tab === "overview"} className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Overview</button>
         <button aria-pressed={tab === "matches"} className={tab === "matches" ? "active" : ""} onClick={() => setTab("matches")}>Matches</button>
       </div>
-      <div className="live-source"><i />Live WTN</div>
     </nav>
 
     <section className="player-bar shell" id="top">
@@ -138,7 +137,5 @@ export default function Home() {
           <RatingChart history={ratings.history} series={series} onSeriesChange={setSeries} />
         </> : <OverviewSkeleton />}
       </div> : <div className="shell content">{data && player ? <MatchHistory key={player.id} matches={data.matches} player={player} loading={status === "loading"} /> : <OverviewSkeleton />}</div>}
-
-    <footer className="shell"><span>WTN Insights</span><p>Independent analytics using live World Tennis Number data.</p></footer>
   </main>;
 }

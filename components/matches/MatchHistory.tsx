@@ -21,7 +21,7 @@ export function MatchHistory({ matches, player, loading = false }: { matches: No
   if (!matches.length) return <div className="match-empty"><strong>No match history returned</strong><p>Rating data may still be available for this player.</p></div>;
 
   return <div className="match-history">
-    <header className="match-heading"><div><p className="eyebrow">MATCH HISTORY</p><h2>Results</h2></div><span>{matches.length} matches</span></header>
+    <header className="match-heading"><h2>Results</h2></header>
     <MatchFilters filters={filters} tournaments={tournaments} visible={visibleMatches.length} total={matches.length} onChange={(next) => { setFilters(next); setExpandedId(null); }} onReset={resetFilters} />
     <MatchSummary matches={visibleMatches} />
     <MatchResultsChart matches={visibleMatches} />
