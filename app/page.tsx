@@ -2,38 +2,29 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { MatchHistory } from "@/components/matches/MatchHistory";
-import type { RatingPoint, WtnApiResponse } from "@/lib/wtn/types";
+import { RatingChart } from "@/components/ratings/RatingChart";
+import type { WtnApiResponse } from "@/lib/wtn/types";
 
 const DEFAULT_TENNIS_ID = "MAU8054205";
 const dateFormatter = new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric" });
-const shortDateFormatter = new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short" });
 
 function displayDate(value: string | null | undefined) {
-  return value ? dateFormatter.format(new Date(value)) : "not available";
+  return value ? dateFormatter.format(new Date(value)) : null;
 }
 
-function Chart({ data, series }: { data: RatingPoint[]; series: "singles" | "doubles" }) {
-  const points = data.filter((point) => point[series] != null).slice(-12);
-  if (points.length < 2) return <div className="chart-empty">Not enough rating points to draw this series.</div>;
-  const width = 680, height = 210;
-  const values = points.map((point) => point[series] as number);
-  const minimum = Math.min(...values) - 0.2, maximum = Math.max(...values) + 0.2;
-  const coords = values.map((value, index) => `${18 + index / Math.max(values.length - 1, 1) * (width - 36)},${18 + (value - minimum) / Math.max(maximum - minimum, 0.1) * (height - 48)}`);
-  const color = series === "singles" ? "#d8ff48" : "#8cb4ff";
-  return <svg className="chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${series} rating history`}>
-    {[45, 95, 145].map((y) => <line key={y} x1="18" x2={width - 18} y1={y} y2={y} className="gridline" />)}
-    <polyline points={coords.join(" ")} fill="none" stroke={color} strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />
-    {coords.map((point, index) => { const [x, y] = point.split(","); return <circle key={`${point}-${index}`} cx={x} cy={y} r="5" fill={color} />; })}
-    {points.map((point, index) => <text key={`${point.date}-${index}`} x={18 + index / Math.max(points.length - 1, 1) * (width - 36)} y="202" textAnchor="middle">{shortDateFormatter.format(new Date(point.date))}</text>)}
-  </svg>;
-}
-
-function RatingCard({ title, value, change, primary = false }: { title: string; value: number | null; change: number | null; primary?: boolean }) {
+function RatingCard({ title, value, change, confidence, primary = false }: { title: string; value: number | null; change: number | null; confidence: number | null; primary?: boolean }) {
   return <article className={`rating-card ${primary ? "primary" : ""}`}>
-    <div className="card-top"><p>{title}</p><span>Official</span></div>
-    <strong>{value == null ? "—" : value.toFixed(2)}</strong>
-    {change == null ? <div className="change neutral">Change unavailable</div> : <div className={`change ${change <= 0 ? "good" : "bad"}`}>{change > 0 ? "↑" : change < 0 ? "↓" : "→"} {Math.abs(change).toFixed(2)} <small>since last update</small></div>}
+    <p>{title}</p>
+    <div className="rating-value-row"><strong>{value == null ? "—" : value.toFixed(2)}</strong>{confidence != null && <span>{confidence}% confidence</span>}</div>
+    {change != null && <div className={`rating-change ${change <= 0 ? "positive" : "negative"}`}><b>{change > 0 ? "↑" : change < 0 ? "↓" : "→"} {Math.abs(change).toFixed(2)}</b><span>latest update</span></div>}
   </article>;
+}
+
+function OverviewSkeleton() {
+  return <div className="overview-skeleton" aria-label="Loading player ratings">
+    <div className="rating-skeleton"><i /><span /><span /></div><div className="rating-skeleton"><i /><span /><span /></div>
+    <div className="chart-skeleton"><i /><span /></div>
+  </div>;
 }
 
 export default function Home() {
@@ -41,14 +32,14 @@ export default function Home() {
   const dataRef = useRef<WtnApiResponse | null>(null);
   const [playerId, setPlayerId] = useState(DEFAULT_TENNIS_ID);
   const [status, setStatus] = useState<"loading" | "live" | "error">("loading");
-  const [message, setMessage] = useState("Loading live WTN data…");
+  const [message, setMessage] = useState("Loading player…");
   const [diagnostic, setDiagnostic] = useState<string | null>(null);
-  const [tab, setTab] = useState<"overview" | "matches">("matches");
+  const [tab, setTab] = useState<"overview" | "matches">("overview");
   const [series, setSeries] = useState<"singles" | "doubles">("singles");
 
   const loadPlayer = useCallback(async (tennisId: string) => {
     setStatus("loading");
-    setMessage(dataRef.current ? "Refreshing live WTN data…" : "Loading live WTN data…");
+    setMessage(dataRef.current ? "Refreshing player…" : "Loading player…");
     setDiagnostic(null);
     try {
       const response = await fetch(`/api/wtn?tennisId=${encodeURIComponent(tennisId.trim())}`);
@@ -58,7 +49,7 @@ export default function Home() {
       setData(body);
       setPlayerId(body.player.id);
       setStatus("live");
-      setMessage(`${body.matches.length} live matches loaded from WTN`);
+      setMessage("");
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Unable to load WTN data right now.");
@@ -77,7 +68,7 @@ export default function Home() {
         setData(body);
         setPlayerId(body.player.id);
         setStatus("live");
-        setMessage(`${body.matches.length} live matches loaded from WTN`);
+        setMessage("");
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") return;
         setStatus("error");
@@ -88,52 +79,48 @@ export default function Home() {
     return () => controller.abort();
   }, []);
 
-  const history = data?.ratings.history ?? [];
-  const trendValues = history.map((point) => point[series]).filter((value): value is number => value != null);
-  const trend = trendValues.length > 1 ? trendValues.at(-1)! - trendValues[0] : null;
-
   function submit(event: FormEvent) { event.preventDefault(); void loadPlayer(playerId); }
 
-  const player = data?.player, ratings = data?.ratings;
-  const confidence = series === "singles" ? ratings?.singlesConfidence : ratings?.doublesConfidence;
+  const player = data?.player;
+  const ratings = data?.ratings;
 
-  return <main>
+  return <main className={status === "loading" && data ? "is-refreshing" : ""} aria-busy={status === "loading"}>
     <nav>
       <a className="brand" href="#top" aria-label="WTN Insights home"><span>W</span> WTN Insights</a>
       <div className="navlinks" aria-label="Dashboard sections">
-        <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Overview</button>
-        <button className={tab === "matches" ? "active" : ""} onClick={() => setTab("matches")}>Match history</button>
+        <button aria-pressed={tab === "overview"} className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Overview</button>
+        <button aria-pressed={tab === "matches"} className={tab === "matches" ? "active" : ""} onClick={() => setTab("matches")}>Matches</button>
       </div>
-      <div className="live-source"><i />WTN live</div>
+      <div className="live-source"><i />Live WTN</div>
     </nav>
 
-    <section className="hero shell" id="top">
-      <div><p className="eyebrow">PLAYER DASHBOARD · {player?.country ?? "WTN"}</p><h1>{player?.name ?? "Match intelligence"}</h1><p className="subline">Tennis ID {player?.id ?? playerId.toUpperCase()} <span>•</span> Updated {displayDate(ratings?.updatedAt)}</p></div>
-      <form onSubmit={submit} className="search"><label htmlFor="pid">Load another Tennis ID</label><div><input id="pid" value={playerId} onChange={(event) => setPlayerId(event.target.value)} placeholder="e.g. MAU8054205" autoCapitalize="characters" aria-describedby="load-status" /><button disabled={status === "loading"}>{status === "loading" ? "Loading…" : "Load player"}</button></div></form>
+    <section className="player-bar shell" id="top">
+      <div className="player-identity">
+        <p>{player?.country ?? "WTN player"}</p>
+        <h1>{player?.name ?? <span className="identity-skeleton" />}</h1>
+        <small>{player?.id ?? playerId.toUpperCase()}{displayDate(ratings?.updatedAt) ? <> · Updated {displayDate(ratings?.updatedAt)}</> : null}</small>
+      </div>
+      <form onSubmit={submit} className="player-search">
+        <label className="sr-only" htmlFor="pid">Load another Tennis ID</label>
+        <input id="pid" value={playerId} onChange={(event) => setPlayerId(event.target.value)} placeholder="Tennis ID" autoCapitalize="characters" aria-describedby={status !== "live" ? "load-status" : undefined} />
+        <button disabled={status === "loading"}>{status === "loading" ? "Loading" : "Load"}</button>
+      </form>
     </section>
 
-    <div id="load-status" className={`notice ${status}`} role="status"><span />{message}{status === "error" && data && <small>Your last loaded data is still shown.</small>}</div>
+    {status !== "live" && <div id="load-status" className={`status-banner ${status} shell`} role="status"><span />{message}{status === "error" && data && <small>Previous data remains visible.</small>}</div>}
     {process.env.NODE_ENV === "development" && diagnostic && <details className="diagnostic shell"><summary>Development API diagnostic</summary><code>{diagnostic}</code></details>}
 
-    {tab === "overview" ? <div className="shell content overview-content">
-      <section className="rating-grid">
-        <RatingCard title="Singles WTN" value={ratings?.singles ?? null} change={ratings?.singlesChange ?? null} primary />
-        <RatingCard title="Doubles WTN" value={ratings?.doubles ?? null} change={ratings?.doublesChange ?? null} />
-        <article className="mini-card"><p>{series === "singles" ? "Singles" : "Doubles"} confidence</p><strong>{confidence == null ? "—" : `${confidence}%`}</strong><div className="meter"><i style={{ width: `${confidence ?? 0}%` }} /></div><small>WTN data confidence</small></article>
-        <article className="mini-card"><p>Matches loaded</p><strong>{data?.matches.length ?? "—"}</strong><small>Official records in this rating period</small></article>
-      </section>
-      <section className="panel history">
-        <header><div><p className="eyebrow">RATING DEVELOPMENT</p><h2>Your WTN over time</h2></div><div className="switch"><button className={series === "singles" ? "active" : ""} onClick={() => setSeries("singles")}>Singles</button><button className={series === "doubles" ? "active" : ""} onClick={() => setSeries("doubles")}>Doubles</button></div></header>
-        <Chart data={history} series={series} />
-        <div className="chart-summary"><span>Period change</span><strong className={trend == null ? "" : trend <= 0 ? "green" : "red"}>{trend == null ? "—" : `${trend > 0 ? "+" : ""}${trend.toFixed(2)}`}</strong><small>Lower WTN means stronger</small></div>
-      </section>
-      <section className="insights">
-        <article><span>01</span><div><h3>Rating direction</h3><p>{trend == null ? "More rating points are needed to calculate a trend." : `Your ${series} WTN has ${trend <= 0 ? "improved" : "moved higher"} by ${Math.abs(trend).toFixed(2)}.`}</p></div></article>
-        <article><span>02</span><div><h3>Official match context</h3><p>{data?.matches.length ? `${data.matches.length} matches include verified opponent, score and result context where supplied by WTN.` : "No matches were returned for the loaded rating period."}</p></div></article>
-        <article><span>03</span><div><h3>Read ratings correctly</h3><p>A lower World Tennis Number represents a stronger player. Pre-match ratings make upset wins easy to spot.</p></div></article>
-      </section>
-    </div> : <div className="shell content"><MatchHistory matches={data?.matches ?? []} loading={status === "loading"} /></div>}
+    {!data && status === "error" ? <section className="load-error shell"><strong>Player data could not be loaded.</strong><p>{message}</p><button type="button" onClick={() => void loadPlayer(playerId)}>Try again</button></section>
+      : tab === "overview" ? <div className="shell content overview-content">
+        {data && ratings ? <>
+          <section className="rating-grid">
+            <RatingCard title="Singles WTN" value={ratings.singles} change={ratings.singlesChange} confidence={ratings.singlesConfidence} primary />
+            <RatingCard title="Doubles WTN" value={ratings.doubles} change={ratings.doublesChange} confidence={ratings.doublesConfidence} />
+          </section>
+          <RatingChart history={ratings.history} series={series} onSeriesChange={setSeries} />
+        </> : <OverviewSkeleton />}
+      </div> : <div className="shell content">{data && player ? <MatchHistory key={player.id} matches={data.matches} player={player} loading={status === "loading"} /> : <OverviewSkeleton />}</div>}
 
-    <footer className="shell"><span>WTN Insights</span><p>Independent analytics using live World Tennis Number data. Not affiliated with the ITF.</p></footer>
+    <footer className="shell"><span>WTN Insights</span><p>Independent analytics using live World Tennis Number data.</p></footer>
   </main>;
 }

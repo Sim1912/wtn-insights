@@ -18,6 +18,8 @@ export const WTN_QUERY = `query WtnDashboard($tennisId: ID!, $personId: PersonID
     prevTennisNumber
     type
     confidence
+    gameZoneLower
+    gameZoneUpper
     matchUps {
       id
       providerMatchId

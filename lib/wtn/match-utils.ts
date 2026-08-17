@@ -18,21 +18,30 @@ export const DEFAULT_FILTERS: MatchFilters = {
 
 export function averageOpponentWtn(match: NormalizedMatch): number | null {
   const values = match.opponents.map((opponent) => opponent.wtnBeforeMatch).filter((value): value is number => value != null);
-  return values.length === match.opponents.length && values.length
+  const expectedPlayers = match.matchType === "doubles" ? 2 : match.matchType === "singles" ? 1 : match.opponents.length;
+  return values.length === expectedPlayers && match.opponents.length === expectedPlayers
     ? values.reduce((sum, value) => sum + value, 0) / values.length
     : null;
 }
 
+export function averagePlayerTeamWtn(match: NormalizedMatch): number | null {
+  const values = [match.playerWtnBeforeMatch, ...match.partners.map((partner) => partner.wtnBeforeMatch)]
+    .filter((value): value is number => value != null);
+  const expectedPlayers = match.matchType === "doubles" ? 2 : 1;
+  return values.length === expectedPlayers ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+}
+
 export function opponentStrength(match: NormalizedMatch): "stronger" | "weaker" | "equal" | "unknown" {
   const opponentWtn = averageOpponentWtn(match);
-  if (opponentWtn == null || match.playerWtnBeforeMatch == null) return "unknown";
-  if (opponentWtn < match.playerWtnBeforeMatch) return "stronger";
-  if (opponentWtn > match.playerWtnBeforeMatch) return "weaker";
+  const playerTeamWtn = averagePlayerTeamWtn(match);
+  if (opponentWtn == null || playerTeamWtn == null) return "unknown";
+  if (opponentWtn < playerTeamWtn) return "stronger";
+  if (opponentWtn > playerTeamWtn) return "weaker";
   return "equal";
 }
 
 export function closeness(match: NormalizedMatch): number {
-  if (!match.sets.length) return Number.POSITIVE_INFINITY;
+  if (match.status !== "completed" || !match.sets.length || match.sets.some((set) => set.side1Games == null || set.side2Games == null)) return Number.POSITIVE_INFINITY;
   return match.sets.reduce((total, set) => {
     const side1 = set.isMatchTiebreak ? set.side1Tiebreak ?? set.side1Games : set.side1Games;
     const side2 = set.isMatchTiebreak ? set.side2Tiebreak ?? set.side2Games : set.side2Games;
@@ -41,8 +50,27 @@ export function closeness(match: NormalizedMatch): number {
 }
 
 export function isCloseMatch(match: NormalizedMatch): boolean {
-  if (match.sets.length < 2) return false;
-  return match.sets.some((set) => set.isMatchTiebreak) || closeness(match) <= match.sets.length * 2;
+  if (match.status !== "completed" || match.result === "unknown" || match.sets.length < 2) return false;
+  if (match.sets.some((set) => set.isMatchTiebreak)) return true;
+  return match.sets.every((set) => set.side1Games != null && set.side2Games != null && Math.abs(set.side1Games - set.side2Games) <= 2);
+}
+
+export type MonthlyResult = { month: string; wins: number; losses: number; total: number; winRate: number };
+
+export function monthlyResults(matches: NormalizedMatch[]): MonthlyResult[] {
+  const months = new Map<string, { wins: number; losses: number }>();
+  for (const match of matches) {
+    if (!match.date || match.result === "unknown") continue;
+    const month = match.date.slice(0, 7);
+    const current = months.get(month) ?? { wins: 0, losses: 0 };
+    if (match.result === "win") current.wins += 1;
+    else current.losses += 1;
+    months.set(month, current);
+  }
+  return [...months.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, result]) => {
+    const total = result.wins + result.losses;
+    return { month, ...result, total, winRate: total ? result.wins / total : 0 };
+  });
 }
 
 export function filterAndSortMatches(matches: NormalizedMatch[], filters: MatchFilters): NormalizedMatch[] {

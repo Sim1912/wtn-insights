@@ -1,4 +1,4 @@
-import { parseScoreText, resultFromWinner, statusFromScoreText } from "./score";
+import { parseScoreText, resultFromWinner, statusFromScoreText } from "./score.ts";
 import type {
   MatchParticipant,
   MatchStatus,
@@ -77,6 +77,9 @@ function participant(match: RawMatch, person: RawPerson | null | undefined, type
 function structuredSets(match: RawMatch, winner: 1 | 2 | null): NormalizedSet[] {
   const rawSets = match.score?.sets ?? [];
   const rawTextSets = parseScoreText(match.score?.scoreString);
+  // Structured set fields are winner/loser oriented. Without an official
+  // winning side we cannot safely assign them to the two teams.
+  if (!winner) return [];
   if (!rawSets.length) return winner === 2 ? rawTextSets.map((set) => ({
     side1Games: set.side2Games,
     side2Games: set.side1Games,
@@ -157,6 +160,7 @@ export function normalizeMatch(
 
   return {
     id,
+    providerMatchId: match.providerMatchId ?? null,
     date: match.start ?? null,
     completedAt: match.end ?? null,
     matchType: type,
@@ -171,7 +175,11 @@ export function normalizeMatch(
     playerWtnBeforeMatch: ratingForPerson(match, playerPerson?.id, type),
     sets: structuredSets(match, winner),
     scoreText: match.score?.scoreString ?? null,
+    matchFormat: match.matchUpFormat ?? null,
+    draw: match.drawName ?? null,
+    statusCodes: match.statusCodes ?? [],
     tournament: tournament?.name || tournament?.promotionalName || tournament?.formalName || match.drawName || null,
+    tournamentId: tournament?.id ?? null,
     round: match.roundName || (match.roundNumber ? `Round ${match.roundNumber}` : null),
     ageCategory: match.ageCategoryCode ?? null,
     surface,
@@ -179,35 +187,55 @@ export function normalizeMatch(
   };
 }
 
-function normalizedHistory(raw: RawRating[]): RatingPoint[] {
-  const byDate = new Map<string, RatingPoint>();
-  const sorted = [...raw].sort((a, b) => (a.ratingDate ?? "").localeCompare(b.ratingDate ?? ""));
-  let singles: number | null = null;
-  let doubles: number | null = null;
-  for (const rating of sorted) {
-    if (!rating.ratingDate) continue;
-    if (rating.type === "SINGLE") singles = asFinite(rating.tennisNumber);
-    if (rating.type === "DOUBLE") doubles = asFinite(rating.tennisNumber);
-    byDate.set(rating.ratingDate, { date: rating.ratingDate, singles, doubles });
-  }
-  return [...byDate.values()].slice(-18);
+function normalizedHistory(raw: RawRating[], type: "SINGLE" | "DOUBLE"): RatingPoint[] {
+  return raw
+    .filter((rating) => rating.type === type && rating.ratingDate && asFinite(rating.tennisNumber) != null)
+    .map((rating) => {
+      const value = asFinite(rating.tennisNumber)!;
+      const previous = asFinite(rating.prevTennisNumber);
+      return {
+        date: rating.ratingDate!,
+        value,
+        previous,
+        change: previous == null ? null : value - previous,
+        confidence: asFinite(rating.confidence),
+        gameZoneLower: asFinite(rating.gameZoneLower),
+        gameZoneUpper: asFinite(rating.gameZoneUpper),
+        connectedMatches: Array.isArray(rating.matchUps)
+          ? new Set(rating.matchUps.map((match) => match.id || match.providerMatchId).filter(Boolean)).size
+          : null,
+      };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function ratingSummary(raw: RawRating[]): RatingSummary {
-  const singles = raw.filter((rating) => rating.type === "SINGLE" && asFinite(rating.tennisNumber) != null);
-  const doubles = raw.filter((rating) => rating.type === "DOUBLE" && asFinite(rating.tennisNumber) != null);
+  const byMostRecent = (a: RawRating, b: RawRating) => (b.ratingDate ?? "").localeCompare(a.ratingDate ?? "");
+  const singles = raw
+    .filter((rating) => rating.type === "SINGLE" && asFinite(rating.tennisNumber) != null)
+    .sort(byMostRecent);
+  const doubles = raw
+    .filter((rating) => rating.type === "DOUBLE" && asFinite(rating.tennisNumber) != null)
+    .sort(byMostRecent);
   const latestSingles = singles[0];
   const latestDoubles = doubles[0];
   const dates = [latestSingles?.ratingDate, latestDoubles?.ratingDate].filter((date): date is string => Boolean(date));
   return {
     singles: asFinite(latestSingles?.tennisNumber),
     doubles: asFinite(latestDoubles?.tennisNumber),
-    singlesChange: latestSingles ? (asFinite(latestSingles.tennisNumber) ?? 0) - (asFinite(latestSingles.prevTennisNumber) ?? asFinite(latestSingles.tennisNumber) ?? 0) : null,
-    doublesChange: latestDoubles ? (asFinite(latestDoubles.tennisNumber) ?? 0) - (asFinite(latestDoubles.prevTennisNumber) ?? asFinite(latestDoubles.tennisNumber) ?? 0) : null,
+    singlesChange: latestSingles && asFinite(latestSingles.prevTennisNumber) != null
+      ? (asFinite(latestSingles.tennisNumber) ?? 0) - asFinite(latestSingles.prevTennisNumber)!
+      : null,
+    doublesChange: latestDoubles && asFinite(latestDoubles.prevTennisNumber) != null
+      ? (asFinite(latestDoubles.tennisNumber) ?? 0) - asFinite(latestDoubles.prevTennisNumber)!
+      : null,
     singlesConfidence: asFinite(latestSingles?.confidence),
     doublesConfidence: asFinite(latestDoubles?.confidence),
     updatedAt: dates.sort().at(-1) ?? null,
-    history: normalizedHistory(raw),
+    history: {
+      singles: normalizedHistory(raw, "SINGLE"),
+      doubles: normalizedHistory(raw, "DOUBLE"),
+    },
   };
 }
 

@@ -26,6 +26,7 @@ export type MatchParticipant = {
 
 export type NormalizedMatch = {
   id: string;
+  providerMatchId: string | null;
   date: string | null;
   completedAt: string | null;
   matchType: MatchType;
@@ -38,7 +39,11 @@ export type NormalizedMatch = {
   playerWtnBeforeMatch: number | null;
   sets: NormalizedSet[];
   scoreText: string | null;
+  matchFormat: string | null;
+  draw: string | null;
+  statusCodes: string[];
   tournament: string | null;
+  tournamentId: string | null;
   round: string | null;
   ageCategory: string | null;
   surface: string | null;
@@ -47,8 +52,13 @@ export type NormalizedMatch = {
 
 export type RatingPoint = {
   date: string;
-  singles: number | null;
-  doubles: number | null;
+  value: number;
+  previous: number | null;
+  change: number | null;
+  confidence: number | null;
+  gameZoneLower: number | null;
+  gameZoneUpper: number | null;
+  connectedMatches: number | null;
 };
 
 export type PlayerProfile = {
@@ -66,7 +76,10 @@ export type RatingSummary = {
   singlesConfidence: number | null;
   doublesConfidence: number | null;
   updatedAt: string | null;
-  history: RatingPoint[];
+  history: {
+    singles: RatingPoint[];
+    doubles: RatingPoint[];
+  };
 };
 
 export type WtnApiResponse = {
@@ -156,6 +169,8 @@ export type RawRating = {
   prevTennisNumber?: number | null;
   type?: string | null;
   confidence?: number | null;
+  gameZoneLower?: number | null;
+  gameZoneUpper?: number | null;
   matchUps?: RawMatch[] | null;
 };
 
