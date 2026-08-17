@@ -1,6 +1,6 @@
 import type { RawWtnPayload } from "./types";
 
-export const DEFAULT_ENDPOINT = "https://prd-itf-kube.clubspark.pro/graphql";
+export const DEFAULT_ENDPOINT = "https://prd-itf-public.clubspark.pro/graphql";
 
 export const WTN_QUERY = `query WtnDashboard($tennisId: ID!, $personId: PersonIDInput!, $start: String, $end: String) {
   player: person(id: $personId) {
