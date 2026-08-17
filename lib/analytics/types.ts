@@ -39,6 +39,13 @@ export type TrendPoint = {
   gamesWon: number;
   gamesLost: number;
   gamesWonRate: number | null;
+  rolling5WinRate: number | null;
+  rolling10WinRate: number | null;
+  rolling5Wins: number;
+  rolling5Sample: number;
+  rolling10Wins: number;
+  rolling10Sample: number;
+  averageOpponentWtn: number | null;
 };
 
 export type PartnerRow = { name: string; wins: number; losses: number; matchIds: string[] };
@@ -51,7 +58,10 @@ export type AnalyticsReport = {
   games: RecordResult;
   deciding: RecordResult;
   decidingNormal: RecordResult;
+  decidingBestOfThree: RecordResult;
+  decidingBestOfFive: RecordResult;
   matchTiebreaks: RecordResult;
+  averageMatchTiebreakDifference: MetricResult;
   normalTiebreaks: RecordResult;
   finalSetTiebreaks: RecordResult;
   closeMatches: RecordResult;

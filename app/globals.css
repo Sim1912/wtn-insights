@@ -857,6 +857,8 @@ nav {
 .pressure-grid .analytics-record-row:nth-last-child(-n+2) { border-bottom: 0; }
 .pressure-grid .analytics-record-row:nth-child(odd) { border-right: 1px solid var(--line-soft); }
 .pressure-grid .analytics-record-row > i { display: none; }
+.pressure-note { margin: 10px 3px 0; color: var(--muted); font-size: 10px; }
+.pressure-note strong { color: var(--ink); font-variant-numeric: tabular-nums; }
 .opponent-highlights { display: grid; grid-template-columns: .8fr 1.4fr .7fr .7fr; overflow: hidden; border-radius: 13px; background: var(--ink); }
 .opponent-highlights > div { min-height: 112px; display: flex; min-width: 0; flex-direction: column; justify-content: center; padding: 17px 19px; border-right: 1px solid #30362d; }
 .opponent-highlights > div:last-child { border: 0; }

@@ -103,7 +103,10 @@ export function calculateAnalytics(matches: NormalizedMatch[]): AnalyticsReport 
   const gamesTotal = gamesWon + gamesLost;
   const decidingMatches = scored.filter((match) => decidingSetIndex(match) != null);
   const decidingNormal = decidingMatches.filter((match) => !match.sets[decidingSetIndex(match)!].isMatchTiebreak);
+  const decidingBestOfFive = decidingMatches.filter(isBestOfFive);
+  const decidingBestOfThree = decidingMatches.filter((match) => !isBestOfFive(match));
   const mtbMatches = scored.filter((match) => matchTiebreakSets(match).length > 0);
+  const mtbDifferences = mtbMatches.flatMap((match) => matchTiebreakSets(match).flatMap((set) => { const score = setSideValues(set, match.playerSide); return score ? [score[0] - score[1]] : []; }));
   const normalTbMatches = scored.filter((match) => normalSets(match).some((set) => set.side1Tiebreak != null || set.side2Tiebreak != null));
   const normalTbOutcomes = normalTbMatches.flatMap((match) => normalSets(match).filter((set) => set.side1Tiebreak != null || set.side2Tiebreak != null).map((set) => ({ match, won: playerWonSet(set, match.playerSide) })));
   const normalTbWins = normalTbOutcomes.filter((entry) => entry.won).length;
@@ -156,7 +159,8 @@ export function calculateAnalytics(matches: NormalizedMatch[]): AnalyticsReport 
     matchRecord: record(competitive, total),
     sets: { ...metric(setsTotal ? setsWon / setsTotal : null, scoredIds, total, setsWon, setsTotal), wins: setsWon, losses: setsLost },
     games: { ...metric(gamesTotal ? gamesWon / gamesTotal : null, scoredIds, total, gamesWon, gamesTotal), wins: gamesWon, losses: gamesLost },
-    deciding: record(decidingMatches, total), decidingNormal: record(decidingNormal, total), matchTiebreaks: record(mtbMatches, total),
+    deciding: record(decidingMatches, total), decidingNormal: record(decidingNormal, total), decidingBestOfThree: record(decidingBestOfThree, total), decidingBestOfFive: record(decidingBestOfFive, total), matchTiebreaks: record(mtbMatches, total),
+    averageMatchTiebreakDifference: metric(mtbDifferences.length ? mtbDifferences.reduce((sum, value) => sum + value, 0) / mtbDifferences.length : null, mtbMatches.map((match) => match.id), total, mtbDifferences.reduce((sum, value) => sum + value, 0), mtbDifferences.length),
     normalTiebreaks: { ...metric(normalTbOutcomes.length ? normalTbWins / normalTbOutcomes.length : null, normalTbMatches.map((match) => match.id), total, normalTbWins, normalTbOutcomes.length), wins: normalTbWins, losses: normalTbOutcomes.length - normalTbWins },
     finalSetTiebreaks: record(finalTbMatches, total), closeMatches: record(close, total),
     comebackFirstSet: record(lostFirst, total), comebackTwoSets: record(trailedTwo, total), trailedOneSetWins: record(trailedOne, total), lostSecondThenWon: record(splitFirstTwo, total),

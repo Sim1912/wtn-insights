@@ -127,6 +127,21 @@ test("filters analytics by match type, standard periods and custom dates", () =>
   assert.deepEqual(filterAnalyticsMatches(matches, "all", "custom", "2026-07-15", "2026-08-15").map((entry) => entry.id), [straightWin.id]);
 });
 
+test("builds monthly, rolling-form and opponent-strength trends", () => {
+  const matches = [
+    { ...straightWin, date: "2026-01-02T00:00:00.000Z" },
+    { ...straightLoss, date: "2026-01-12T00:00:00.000Z" },
+    { ...comeback, date: "2026-02-02T00:00:00.000Z" },
+  ];
+  const trends = calculateAnalytics(matches).trends;
+  assert.equal(trends.length, 2);
+  assert.equal(trends[0].matches, 2);
+  assert.equal(trends[0].rolling5WinRate, .5);
+  assert.equal(trends[1].rolling5WinRate, 2 / 3);
+  assert.equal(trends[1].rolling10Sample, 3);
+  assert.equal(trends[1].averageOpponentWtn, 20);
+});
+
 test("fixtures cover all required normalized match shapes", () => {
   const fixtures: Array<[string, NormalizedMatch]> = [
     ["straight win", straightWin], ["straight loss", straightLoss], ["first-set comeback", comeback], ["lost first-set lead", lostLead],

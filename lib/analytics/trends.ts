@@ -1,6 +1,7 @@
 import { hasUsableSets, isCompetitiveMatch, normalSets, playerScore, playerWonSet } from "./eligibility.ts";
 import type { AnalyticsMatchType, AnalyticsPeriod, TrendPoint } from "./types";
 import type { NormalizedMatch } from "../wtn/types";
+import { averageOpponentWtn } from "../wtn/match-utils.ts";
 
 const PERIOD_MONTHS: Record<Exclude<AnalyticsPeriod, "all" | "custom">, number> = { "1m": 1, "3m": 3, "6m": 6, "1y": 12 };
 
@@ -25,13 +26,21 @@ export function filterAnalyticsMatches(matches: NormalizedMatch[], matchType: An
 }
 
 export function monthlyTrends(matches: NormalizedMatch[]): TrendPoint[] {
-  const rows = new Map<string, Omit<TrendPoint, "month" | "winRate" | "setsWonRate" | "gamesWonRate">>();
-  for (const match of matches) {
+  type WorkingRow = Omit<TrendPoint, "month" | "winRate" | "setsWonRate" | "gamesWonRate" | "averageOpponentWtn"> & { opponentWtnTotal: number; opponentWtnSample: number };
+  const rows = new Map<string, WorkingRow>();
+  const recentResults: Array<"win" | "loss"> = [];
+  for (const match of [...matches].sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""))) {
     if (!match.date || !isCompetitiveMatch(match)) continue;
     const month = match.date.slice(0, 7);
-    const row = rows.get(month) ?? { wins: 0, losses: 0, matches: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0 };
+    const row = rows.get(month) ?? { wins: 0, losses: 0, matches: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0, rolling5WinRate: null, rolling10WinRate: null, rolling5Wins: 0, rolling5Sample: 0, rolling10Wins: 0, rolling10Sample: 0, opponentWtnTotal: 0, opponentWtnSample: 0 };
     row.matches += 1;
     if (match.result === "win") row.wins += 1; else row.losses += 1;
+    recentResults.push(match.result);
+    const lastFive = recentResults.slice(-5); const lastTen = recentResults.slice(-10);
+    row.rolling5Wins = lastFive.filter((result) => result === "win").length; row.rolling5Sample = lastFive.length; row.rolling5WinRate = row.rolling5Wins / row.rolling5Sample;
+    row.rolling10Wins = lastTen.filter((result) => result === "win").length; row.rolling10Sample = lastTen.length; row.rolling10WinRate = row.rolling10Wins / row.rolling10Sample;
+    const opponentWtn = averageOpponentWtn(match);
+    if (opponentWtn != null) { row.opponentWtnTotal += opponentWtn; row.opponentWtnSample += 1; }
     if (hasUsableSets(match)) for (const set of normalSets(match)) {
       const won = playerWonSet(set, match.playerSide);
       const score = playerScore(set, match.playerSide);
@@ -45,5 +54,6 @@ export function monthlyTrends(matches: NormalizedMatch[]): TrendPoint[] {
     winRate: row.matches ? row.wins / row.matches : null,
     setsWonRate: row.setsWon + row.setsLost ? row.setsWon / (row.setsWon + row.setsLost) : null,
     gamesWonRate: row.gamesWon + row.gamesLost ? row.gamesWon / (row.gamesWon + row.gamesLost) : null,
+    averageOpponentWtn: row.opponentWtnSample ? row.opponentWtnTotal / row.opponentWtnSample : null,
   }));
 }
