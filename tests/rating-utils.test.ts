@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { addRatingGaps, filterRatingPeriod, ratingDomain, type RatingPeriod } from "../lib/wtn/rating-utils.ts";
+import { filterRatingPeriod, ratingDomain, type RatingPeriod } from "../lib/wtn/rating-utils.ts";
 import type { RatingPoint } from "../lib/wtn/types.ts";
 
 const point = (date: string, value: number): RatingPoint => ({ date, value, previous: null, change: null, confidence: null, gameZoneLower: null, gameZoneUpper: null, connectedMatches: null });
@@ -13,13 +13,6 @@ const points = [
 test("supports every rating period selector", () => {
   const expected: Record<RatingPeriod, number> = { "1m": 2, "3m": 2, "6m": 3, "1y": 4, all: 5 };
   for (const period of Object.keys(expected) as RatingPeriod[]) assert.equal(filterRatingPeriod(points, period).length, expected[period]);
-});
-
-test("inserts a null visual break across long rating gaps", () => {
-  const chart = addRatingGaps([point("2026-01-01T00:00:00.000Z", 27), point("2026-04-01T00:00:00.000Z", 26)]);
-  assert.equal(chart.length, 3);
-  assert.equal(chart[1].isGap, true);
-  assert.equal(chart[1].value, null);
 });
 
 test("uses a padded non-misleading rating domain", () => {

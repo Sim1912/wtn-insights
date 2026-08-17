@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { addRatingGaps, filterRatingPeriod, ratingDomain, type ChartRatingPoint, type RatingPeriod } from "@/lib/wtn/rating-utils";
+import { filterRatingPeriod, ratingDomain, type ChartRatingPoint, type RatingPeriod } from "@/lib/wtn/rating-utils";
 import type { RatingPoint } from "@/lib/wtn/types";
 
 type Series = "singles" | "doubles";
@@ -55,7 +55,10 @@ export function RatingChart({
   const [period, setPeriod] = useState<RatingPeriod>("1y");
   const seriesPoints = history[series];
   const visiblePoints = useMemo(() => filterRatingPeriod(seriesPoints, period), [seriesPoints, period]);
-  const chartPoints = useMemo(() => addRatingGaps(visiblePoints), [visiblePoints]);
+  const chartPoints = useMemo(
+    () => visiblePoints.map((point) => ({ ...point, timestamp: new Date(point.date).getTime() })),
+    [visiblePoints],
+  );
   const domain = useMemo(() => ratingDomain(visiblePoints), [visiblePoints]);
   const trend = visiblePoints.length > 1 ? visiblePoints.at(-1)!.value - visiblePoints[0].value : null;
   const color = series === "singles" ? "#b7dc22" : "#6e91d9";
@@ -82,7 +85,7 @@ export function RatingChart({
           <XAxis dataKey="timestamp" type="number" domain={["dataMin", "dataMax"]} scale="time" tickFormatter={(value) => axisDateFormatter.format(new Date(value))} tickLine={false} axisLine={false} minTickGap={52} tick={{ fill: "#626b5e", fontSize: 11 }} dy={9} />
           <YAxis reversed domain={domain} width={46} tickCount={5} tickFormatter={(value: number) => value.toFixed(1)} tickLine={false} axisLine={false} tick={{ fill: "#626b5e", fontSize: 11 }} />
           <Tooltip content={(props) => <RatingTooltip active={props.active} payload={props.payload as TooltipEntry[]} series={series} />} isAnimationActive="auto" allowEscapeViewBox={{ x: false, y: false }} reverseDirection={{ x: true, y: false }} cursor={{ stroke: "#9da695", strokeDasharray: "3 4" }} />
-          <Line name={`${series} WTN`} dataKey="value" type="linear" stroke={color} strokeWidth={3} connectNulls={false} isAnimationActive="auto" animationDuration={180} dot={(props) => <RatingDot {...props} latestDate={latestDate} color={color} />} activeDot={{ r: 6, stroke: "#11140f", strokeWidth: 2, fill: color }} />
+          <Line name={`${series} WTN`} dataKey="value" type="linear" stroke={color} strokeWidth={3} connectNulls isAnimationActive="auto" animationDuration={180} dot={(props) => <RatingDot {...props} latestDate={latestDate} color={color} />} activeDot={{ r: 6, stroke: "#11140f", strokeWidth: 2, fill: color }} />
         </LineChart>
       </ResponsiveContainer> : <div className="chart-empty">No rating updates in this period.</div>}
     </div>
