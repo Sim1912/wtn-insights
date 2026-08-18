@@ -2009,6 +2009,59 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .performance-trend p { margin: 3px 0 0; color: rgba(251,249,241,.6); font-size: 10px; }
 .performance-trend select { min-height: 36px; padding: 0 9px; border: 1px solid var(--border-dark); border-radius: 7px; color: var(--ivory-50); background: rgba(0,0,0,.18); font-size: 10px; }
 .performance-trend option { color: var(--text-primary); background: var(--ivory-50); }
+.trend-metric-picker { position: relative; z-index: 4; }
+.trend-metric-trigger {
+  min-width: 146px;
+  min-height: 36px;
+  padding: 0 10px 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+  color: var(--ivory-50);
+  background: rgba(2, 21, 11, .42);
+  font-size: 10px;
+  font-weight: 620;
+  text-align: left;
+}
+.trend-metric-trigger b { color: var(--court-accent); font-size: 16px; font-weight: 500; line-height: 1; transform: translateY(-2px); }
+.trend-metric-trigger[aria-expanded="true"] { border-color: var(--court-accent-muted); box-shadow: 0 0 0 2px rgba(183, 215, 47, .14); }
+.trend-metric-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  min-width: 188px;
+  padding: 5px;
+  border: 1px solid rgba(251, 249, 241, .2);
+  border-radius: 10px;
+  color: var(--ivory-50);
+  background: #0c2a1b;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, .32);
+}
+.trend-metric-menu button {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 0;
+  border-radius: 6px;
+  color: rgba(251, 249, 241, .82);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 560;
+  text-align: left;
+}
+.trend-metric-menu button:hover,
+.trend-metric-menu button:focus-visible { color: var(--grass-950); background: var(--court-accent); outline: 0; }
+.trend-metric-menu button.active { color: var(--court-accent); font-weight: 650; }
+.trend-metric-menu button.active:hover,
+.trend-metric-menu button.active:focus-visible { color: var(--grass-950); }
 .performance-trend-frame { height: 210px; margin-top: 10px; }
 .performance-trend .analytics-empty { color: rgba(251,249,241,.62); }
 .performance-secondary .analytics-metric { border-color: var(--border-light); }

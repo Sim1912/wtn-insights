@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { calculateAnalytics, SIMILAR_WTN_BAND } from "@/lib/analytics/calculate";
 import { currentStreakText } from "@/lib/analytics/format";
@@ -21,6 +21,7 @@ const initialTennisId = () => typeof window === "undefined" ? DEFAULT_TENNIS_ID 
 
 type ExplorerState = { title: string; ids: string[]; reason: (match: NormalizedMatch) => string } | null;
 type TrendMetric = "winRate" | "setsWonRate" | "gamesWonRate" | "rolling5WinRate" | "rolling10WinRate" | "matches" | "averageOpponentWtn";
+const trendOptions: Array<[TrendMetric, string]> = [["winRate", "Win rate"], ["matches", "Matches played"], ["setsWonRate", "Sets won"], ["gamesWonRate", "Games won"], ["rolling5WinRate", "Rolling last 5"], ["rolling10WinRate", "Rolling last 10"], ["averageOpponentWtn", "Opponent WTN"]];
 
 const pct = (value: number | null) => value == null ? "—" : `${Math.round(value * 100)}%`;
 const decimal = (value: number | null) => value == null ? "—" : value.toFixed(1);
@@ -55,6 +56,25 @@ function TrendTooltip({ active, payload, metric }: { active?: boolean; payload?:
   const denominator = metric === "winRate" ? point.matches : metric === "setsWonRate" ? point.setsWon + point.setsLost : metric === "gamesWonRate" ? point.gamesWon + point.gamesLost : metric === "rolling5WinRate" ? point.rolling5Sample : metric === "rolling10WinRate" ? point.rolling10Sample : null;
   const displayed = metric === "matches" ? String(point.matches) : metric === "averageOpponentWtn" ? point.averageOpponentWtn?.toFixed(2) ?? "—" : pct(point[metric]);
   return <div className="rating-tooltip analytics-tooltip" role="status"><strong>{monthFormatter.format(new Date(`${point.month}-01T00:00:00Z`))}</strong><div className="tooltip-primary"><span>{labels[metric]}</span><strong>{displayed}</strong></div>{numerator != null && denominator != null && <div className="tooltip-row"><span>Record</span><b>{numerator} of {denominator}</b></div>}<div className="tooltip-row"><span>Matches this month</span><b>{point.matches}</b></div></div>;
+}
+
+function TrendMetricPicker({ value, onChange }: { value: TrendMetric; onChange: (value: TrendMetric) => void }) {
+  const [open, setOpen] = useState(false);
+  const picker = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsidePress = (event: MouseEvent) => { if (!picker.current?.contains(event.target as Node)) setOpen(false); };
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); setOpen(false); } };
+    document.addEventListener("mousedown", closeOnOutsidePress);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => { document.removeEventListener("mousedown", closeOnOutsidePress); document.removeEventListener("keydown", closeOnEscape); };
+  }, [open]);
+  const selectedLabel = trendOptions.find(([metric]) => metric === value)?.[1] ?? "Win rate";
+  return <div className="trend-metric-picker" ref={picker}>
+    <button type="button" className="trend-metric-trigger" aria-haspopup="listbox" aria-expanded={open} aria-controls={menuId} onClick={() => setOpen((current) => !current)} onKeyDown={(event) => { if (event.key === "ArrowDown") { event.preventDefault(); setOpen(true); } }}><span>{selectedLabel}</span><b aria-hidden="true">⌄</b></button>
+    {open && <div id={menuId} className="trend-metric-menu" role="listbox" aria-label="Trend metric">{trendOptions.map(([metric, label]) => <button key={metric} type="button" role="option" aria-selected={metric === value} className={metric === value ? "active" : ""} onClick={() => { onChange(metric); setOpen(false); }}><span>{label}</span>{metric === value && <b aria-hidden="true">✓</b>}</button>)}</div>}
+  </div>;
 }
 
 function EvidenceExplorer({ state, matches, onClose }: { state: ExplorerState; matches: NormalizedMatch[]; onClose: () => void }) {
@@ -198,7 +218,7 @@ export function AnalyticsPage() {
             <Metric label="Games won" display={pct(report.games.value)} result={report.games} supporting={`${report.games.wins} of ${report.games.denominator ?? 0} games · ${matchCount(report.games.sampleSize)}`} definition="Games won across completed normal sets. Tiebreak points and match-tiebreak points are excluded." onExplore={() => explore("Games analysed", report.games, () => "Complete normal-game score available")} />
           </div>
           <article className="performance-trend">
-            <header><div><h3>Form over time</h3><p>Discrete monthly results</p></div><select aria-label="Trend metric" value={trendMetric} onChange={(event) => setTrendMetric(event.target.value as TrendMetric)}><option value="winRate">Win rate</option><option value="matches">Matches played</option><option value="setsWonRate">Sets won</option><option value="gamesWonRate">Games won</option><option value="rolling5WinRate">Rolling last 5</option><option value="rolling10WinRate">Rolling last 10</option><option value="averageOpponentWtn">Opponent WTN</option></select></header>
+            <header><div><h3>Form over time</h3><p>Discrete monthly results</p></div><TrendMetricPicker value={trendMetric} onChange={setTrendMetric} /></header>
             <div className="performance-trend-frame">{report.trends.length > 1 && hasTrendValues ? <ChartEntrance><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={190}><LineChart data={report.trends} accessibilityLayer margin={{ top: 12, right: 14, bottom: 2, left: 0 }}><CartesianGrid vertical={false} stroke="rgba(251,249,241,.15)" strokeDasharray="3 7" /><XAxis dataKey="month" tickFormatter={(value) => monthFormatter.format(new Date(`${value}-01T00:00:00Z`))} tickLine={false} axisLine={false} minTickGap={35} tick={{ fill: "rgba(251,249,241,.65)", fontSize: 10 }} /><YAxis domain={trendMetric === "matches" ? [0, "dataMax + 1"] : trendMetric === "averageOpponentWtn" ? ["auto", "auto"] : [0, 1]} ticks={trendMetric === "matches" || trendMetric === "averageOpponentWtn" ? undefined : [0, .25, .5, .75, 1]} tickFormatter={(value) => trendMetric === "matches" ? String(value) : trendMetric === "averageOpponentWtn" ? Number(value).toFixed(1) : `${value * 100}%`} width={42} tickLine={false} axisLine={false} tick={{ fill: "rgba(251,249,241,.65)", fontSize: 10 }} /><Tooltip content={(props) => <TrendTooltip active={props.active} payload={props.payload as Array<{ payload?: TrendPoint }>} metric={trendMetric} />} isAnimationActive={!reducedMotion} /><Line dataKey={trendMetric} name={trendLabel[trendMetric]} type="linear" connectNulls stroke={trendColor[trendMetric]} strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: "var(--grass-800)" }} activeDot={{ r: 6 }} isAnimationActive={!reducedMotion} animationDuration={620} /></LineChart></ResponsiveContainer></ChartEntrance> : <p className="analytics-empty">{report.trends.length <= 1 ? "Not enough dated months." : `No eligible ${trendLabel[trendMetric].toLowerCase()} data.`}</p>}</div>
           </article>
           <div className="performance-secondary">
