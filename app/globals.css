@@ -2189,3 +2189,96 @@ button, a, input, select {
   .filter-segment button,
   .analytics-periods button { min-height: 44px; }
 }
+
+/* Analytics depth — every subject has its own surface and boundary, not extra height. */
+.analytics-section {
+  position: relative;
+  margin-top: var(--space-10);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--border-light);
+}
+.analytics-section-heading {
+  position: relative;
+  margin-bottom: var(--space-5);
+  padding-left: 14px;
+}
+.analytics-section-heading::before {
+  position: absolute;
+  top: .25em;
+  bottom: .25em;
+  left: 0;
+  width: 3px;
+  border-radius: 999px;
+  content: "";
+  background: var(--grass-700);
+}
+.analytics-comebacks .analytics-section-heading::before,
+.analytics-context .analytics-section-heading::before { background: var(--court-accent-muted); }
+.analytics-pressure .analytics-section-heading::before { background: var(--charcoal); }
+
+.analytics-comebacks .comeback-layout {
+  padding-top: var(--space-3);
+  border-top: 2px solid var(--grass-800);
+}
+.analytics-comebacks .record-stack {
+  padding-block: 1px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-medium);
+  background: var(--ivory-50);
+}
+.analytics-comebacks .best-comebacks {
+  margin-top: var(--space-4);
+  padding-inline: var(--space-4);
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--court-accent-muted);
+  border-radius: var(--radius-medium);
+  background: var(--ivory-50);
+}
+
+.analytics-scoring .score-analysis-grid {
+  padding: var(--space-3);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-medium);
+  background: var(--ivory-200);
+}
+.analytics-scoring .score-totals {
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: var(--grass-800);
+}
+.analytics-scoring .score-totals > div { color: var(--ivory-50); }
+.analytics-scoring .score-totals span,
+.analytics-scoring .score-totals small { color: rgba(251, 249, 241, .65); }
+.analytics-scoring .score-totals > div + div { border-color: rgba(251, 249, 241, .14); }
+.analytics-scoring .average-table,
+.analytics-scoring .pattern-list {
+  border-color: rgba(22, 69, 47, .15);
+  background: var(--ivory-50);
+}
+.analytics-scoring .average-table { box-shadow: inset 0 3px 0 var(--court-accent-muted); }
+
+.analytics-pressure .pressure-grid {
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--grass-800);
+  border-radius: var(--radius-medium);
+  background: var(--ivory-50);
+}
+.analytics-pressure .pressure-note {
+  margin: var(--space-3) 0 0;
+  padding: 11px var(--space-4);
+  border-left: 3px solid var(--court-accent-muted);
+  color: var(--text-secondary);
+  background: var(--ivory-200);
+  font-size: 10px;
+}
+.analytics-pressure .pressure-note strong { color: var(--grass-900); }
+
+.analytics-context .opponent-highlights { box-shadow: 0 14px 30px rgba(8, 31, 19, .12); }
+.analytics-context .rating-band-panel { border-top: 3px solid var(--court-accent-muted); }
+
+@media (max-width: 760px) {
+  .analytics-section { margin-top: var(--space-8); padding-top: var(--space-6); }
+  .analytics-scoring .score-analysis-grid { padding: var(--space-2); }
+}

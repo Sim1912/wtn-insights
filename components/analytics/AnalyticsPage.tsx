@@ -219,7 +219,7 @@ export function AnalyticsPage() {
         </aside>}
       </section>
 
-      <section className="analytics-section" aria-labelledby="comebacks-title" data-reveal>
+      <section className="analytics-section analytics-comebacks" aria-labelledby="comebacks-title" data-reveal>
         <AnalyticsSectionHeading id="comebacks-title">What happens after the opening sets</AnalyticsSectionHeading>
         <div className="comeback-layout">
           <article className="comeback-feature comeback-summary">
@@ -244,7 +244,7 @@ export function AnalyticsPage() {
         <details className="analytics-method"><summary>Comeback methodology</summary><p>A first-set comeback requires a lost first completed normal set and an official match win. A two-set comeback requires a best-of-five match and a 0–2 set deficit. Match tiebreaks may decide the match, but final scores cannot prove an in-set comeback.</p></details>
       </section>
 
-      <section className="analytics-section" aria-labelledby="scores-title" data-reveal>
+      <section className="analytics-section analytics-scoring" aria-labelledby="scores-title" data-reveal>
         <AnalyticsSectionHeading id="scores-title">How matches are being won and lost</AnalyticsSectionHeading>
         <div className="score-analysis-grid">
           <div className="score-totals">
@@ -256,7 +256,7 @@ export function AnalyticsPage() {
         </div>
       </section>
 
-      <section className="analytics-section" aria-labelledby="pressure-title" data-reveal>
+      <section className="analytics-section analytics-pressure" aria-labelledby="pressure-title" data-reveal>
         <AnalyticsSectionHeading id="pressure-title">Deciders and tiebreaks</AnalyticsSectionHeading>
         <div className="pressure-grid">
           <RecordRow label="Deciding normal sets" result={report.decidingNormal} onExplore={() => explore("Deciding normal sets", report.decidingNormal, () => "Final normal set with both teams one set from winning")} />
@@ -271,7 +271,7 @@ export function AnalyticsPage() {
         <details className="analytics-method"><summary>Close-match definition</summary><p>A close match must reach a true deciding set. It qualifies when that decider is a normal tiebreak, a match tiebreak won by two points or fewer, or a normal set ending with a two-game margin at four games or higher (for example 6–4, 7–5 or 8–6).</p></details>
       </section>
 
-      <section className="analytics-section" aria-labelledby="opponents-title" data-reveal>
+      <section className="analytics-section analytics-context" aria-labelledby="opponents-title" data-reveal>
         <AnalyticsSectionHeading id="opponents-title">Results in context</AnalyticsSectionHeading>
         <div className="opponent-highlights">
           <div><span>Average opponent WTN</span><strong>{report.averageOpponentWtn.value?.toFixed(2) ?? "—"}</strong><small>{report.averageOpponentWtn.sampleSize ? `${matchCount(report.averageOpponentWtn.sampleSize)} with full ratings` : "No eligible rated matches"}</small></div>
