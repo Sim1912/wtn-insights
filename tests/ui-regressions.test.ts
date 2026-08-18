@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const styles = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
-const overview = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+const overview = readFileSync(new URL("../components/dashboard/Dashboard.tsx", import.meta.url), "utf8");
+const analyticsPage = readFileSync(new URL("../components/analytics/AnalyticsPage.tsx", import.meta.url), "utf8");
 const chart = readFileSync(new URL("../components/ratings/RatingChart.tsx", import.meta.url), "utf8");
 const analytics = readFileSync(new URL("../components/analytics/AnalyticsPage.tsx", import.meta.url), "utf8");
 
@@ -11,6 +12,15 @@ test("homepage WTN values retain their dedicated large-number treatment", () => 
   assert.match(overview, /className="rating-number"/);
   assert.match(styles, /\.rating-number\s*\{[^}]*font-size:\s*clamp\(/s);
   assert.match(styles, /\.rating-card-meta\s*\{/);
+});
+
+test("URL tennisId wins over storage after a hydration-safe initial render", () => {
+  for (const source of [overview, analyticsPage]) {
+    assert.match(source, /useState\(initialPlayerId\)/);
+    assert.match(source, /const urlId = normalizeTennisId\(new URLSearchParams\(window\.location\.search\)\.get\("tennisId"\)\)/);
+    assert.match(source, /const storedId = urlId \? null : normalizeTennisId\(window\.localStorage\.getItem\(PLAYER_ID_STORAGE_KEY\)\)/);
+    assert.match(source, /const requestedId = urlId \?\? storedId \?\? initialPlayerId/);
+  }
 });
 
 test("rating history connects sparse periods and explains direction", () => {

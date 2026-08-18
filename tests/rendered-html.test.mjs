@@ -60,3 +60,19 @@ test("renders the matches route with Matches as the active destination", async (
   assert.doesNotMatch(html, /<a(?=[^>]*href=["']\/\?tennisId=MAU8054205["'])(?=[^>]*aria-current=["']page["'])[^>]*>/i);
   assert.match(html, /Loading match history/i);
 });
+
+test("preserves an alternate URL tennisId across every primary route", async () => {
+  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+  workerUrl.searchParams.set("alternate-player-test", `${process.pid}-${Date.now()}`);
+  const { default: worker } = await import(workerUrl.href);
+  const tennisId = "ABC1234";
+  for (const [path, activeHref] of [["/", `/?tennisId=${tennisId}`], ["/matches", `/matches?tennisId=${tennisId}`], ["/analytics", `/analytics?tennisId=${tennisId}`]]) {
+    const response = await worker.fetch(new Request(`http://localhost${path}?tennisId=${tennisId}`, { headers: { accept: "text/html" } }), {
+      ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
+    }, { waitUntil() {}, passThroughOnException() {} });
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, new RegExp(`<a(?=[^>]*href=["']${activeHref.replace("?", "\\?")}["'])(?=[^>]*aria-current=["']page["'])[^>]*>`, "i"));
+    for (const destination of ["/", "/matches", "/analytics"]) assert.match(html, new RegExp(`href=["']${destination.replace("/", "\\/")}\\?tennisId=${tennisId}["']`, "i"));
+  }
+});

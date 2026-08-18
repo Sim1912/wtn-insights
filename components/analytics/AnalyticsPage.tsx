@@ -7,17 +7,21 @@ import { currentStreakText } from "@/lib/analytics/format";
 import { filterAnalyticsMatches } from "@/lib/analytics/trends";
 import type { AnalyticsMatchType, AnalyticsPeriod, MetricResult, RecordResult, TrendPoint } from "@/lib/analytics/types";
 import { requestPlayer } from "@/lib/wtn/client";
+import { DEFAULT_TENNIS_ID, PLAYER_ID_STORAGE_KEY, normalizeTennisId } from "@/lib/wtn/player-id";
 import { averageOpponentWtn } from "@/lib/wtn/match-utils";
 import { renderScore } from "@/lib/wtn/score";
 import type { NormalizedMatch, WtnApiResponse } from "@/lib/wtn/types";
 import { MainNavigation, PlayerContext } from "@/components/shell/AppChrome";
 import { AnimatedNumber, ChartEntrance, RevealScope, useReducedMotion } from "@/components/ui/Motion";
 
-const DEFAULT_TENNIS_ID = "MAU8054205";
 const dateFormatter = new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric" });
 const monthFormatter = new Intl.DateTimeFormat("en-NZ", { month: "short", year: "2-digit", timeZone: "UTC" });
 const periods: Array<[AnalyticsPeriod, string]> = [["1m", "1M"], ["3m", "3M"], ["6m", "6M"], ["1y", "1Y"], ["all", "All"], ["custom", "Custom"]];
-const initialTennisId = () => typeof window === "undefined" ? DEFAULT_TENNIS_ID : new URLSearchParams(window.location.search).get("tennisId")?.trim().toUpperCase() || DEFAULT_TENNIS_ID;
+function replacePlayerQuery(tennisId: string) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("tennisId", tennisId);
+  window.history.replaceState(null, "", `${url.pathname}?${url.searchParams.toString()}`);
+}
 
 type ExplorerState = { title: string; ids: string[]; reason: (match: NormalizedMatch) => string } | null;
 type TrendMetric = "winRate" | "setsWonRate" | "gamesWonRate" | "rolling5WinRate" | "rolling10WinRate" | "matches" | "averageOpponentWtn";
@@ -134,9 +138,10 @@ function EvidenceExplorer({ state, matches, onClose }: { state: ExplorerState; m
   </div>;
 }
 
-export function AnalyticsPage() {
+export function AnalyticsPage({ initialPlayerId = DEFAULT_TENNIS_ID }: { initialPlayerId?: string }) {
   const [data, setData] = useState<WtnApiResponse | null>(null);
-  const [playerId, setPlayerId] = useState(initialTennisId);
+  // This value is supplied by the server route, so the first client render matches SSR.
+  const [playerId, setPlayerId] = useState(initialPlayerId);
   const [status, setStatus] = useState<"loading" | "live" | "error">("loading");
   const [message, setMessage] = useState("Loading analytics…");
   const [matchType, setMatchType] = useState<AnalyticsMatchType>("all");
@@ -149,11 +154,13 @@ export function AnalyticsPage() {
   const closeExplorer = useCallback(() => setExplorer(null), []);
 
   async function load(tennisId: string, signal?: AbortSignal) {
+    const normalizedId = normalizeTennisId(tennisId) ?? DEFAULT_TENNIS_ID;
     setStatus("loading"); setMessage(data ? "Refreshing analytics…" : "Loading analytics…");
     try {
-      const response = await requestPlayer(tennisId, signal);
+      const response = await requestPlayer(normalizedId, signal);
       setData(response); setPlayerId(response.player.id); setStatus("live"); setMessage("");
-      window.history.replaceState(null, "", `/analytics?tennisId=${encodeURIComponent(response.player.id)}`);
+      window.localStorage.setItem(PLAYER_ID_STORAGE_KEY, response.player.id);
+      replacePlayerQuery(response.player.id);
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") return;
       setStatus("error"); setMessage(error instanceof Error ? error.message : "Unable to load analytics.");
@@ -162,12 +169,17 @@ export function AnalyticsPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const requestedId = new URLSearchParams(window.location.search).get("tennisId")?.trim().toUpperCase() || DEFAULT_TENNIS_ID;
+    const urlId = normalizeTennisId(new URLSearchParams(window.location.search).get("tennisId"));
+    // URL state always wins. Storage is intentionally read only in this effect.
+    const storedId = urlId ? null : normalizeTennisId(window.localStorage.getItem(PLAYER_ID_STORAGE_KEY));
+    const requestedId = urlId ?? storedId ?? initialPlayerId;
     void (async () => {
+      setPlayerId(requestedId);
       try {
         const response = await requestPlayer(requestedId, controller.signal);
         setData(response); setPlayerId(response.player.id); setStatus("live"); setMessage("");
-        window.history.replaceState(null, "", `/analytics?tennisId=${encodeURIComponent(response.player.id)}`);
+        window.localStorage.setItem(PLAYER_ID_STORAGE_KEY, response.player.id);
+        replacePlayerQuery(response.player.id);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") return;
         setStatus("error"); setMessage(error instanceof Error ? error.message : "Unable to load analytics.");
@@ -175,7 +187,7 @@ export function AnalyticsPage() {
     })();
     return () => controller.abort();
   // Initial direct-route load only.
-  }, []);
+  }, [initialPlayerId]);
 
   const filtered = useMemo(() => filterAnalyticsMatches(data?.matches ?? [], matchType, period, dateFrom, dateTo), [data, matchType, period, dateFrom, dateTo]);
   const report = useMemo(() => calculateAnalytics(filtered), [filtered]);
