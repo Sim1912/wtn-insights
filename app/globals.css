@@ -1974,7 +1974,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .match-heading h2 { color: var(--grass-950); }
 .match-filter-bar, .summary-band, .match-trends { border-color: var(--border-light); }
 .filter-segment { background: var(--ivory-200); }
-.filter-segment button.active, .period-switch button.active { color: var(--ivory-50); background: var(--grass-800); box-shadow: none; }
+.filter-segment button.active { color: var(--ivory-50); background: var(--grass-800); box-shadow: none; }
 .match-card { border-color: var(--border-light); border-left-width: 1px; border-radius: 10px; background: var(--ivory-50); }
 .match-card.win, .match-card.loss, .match-card.upset { border-color: var(--border-light); }
 .match-card:hover { border-color: rgba(22,69,47,.32); background: #fffdf7; }
@@ -2127,4 +2127,65 @@ button, a, input, select {
   .navlinks a:active { transform: scale(.985); }
   .rating-card:active,
   .match-card:active { transform: none; }
+}
+
+/* Selection controls — quiet warm tracks, with one crisp, unmistakable selection. */
+.series-switch,
+.period-switch,
+.filter-segment,
+.analytics-periods {
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 1px rgba(8, 31, 19, .05);
+}
+.series-switch,
+.period-switch {
+  border-color: rgba(251, 249, 241, .12);
+  background: rgba(2, 21, 11, .27);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, .2);
+}
+.filter-segment,
+.analytics-periods { background: var(--ivory-200); }
+.analytics-periods { display: flex; align-items: center; }
+.series-switch button,
+.period-switch button,
+.filter-segment button,
+.analytics-periods button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 7px;
+  box-shadow: none;
+  font-weight: 620;
+}
+.series-switch button.active,
+.period-switch button.active {
+  color: var(--grass-950);
+  background: var(--court-accent);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .2);
+}
+.filter-segment button.active,
+.analytics-periods button.active {
+  color: var(--ivory-50);
+  background: var(--grass-800);
+  box-shadow: 0 2px 5px rgba(8, 31, 19, .15);
+}
+.series-switch:focus-within,
+.period-switch:focus-within,
+.filter-segment:focus-within,
+.analytics-periods:focus-within { border-color: var(--court-accent-muted); }
+
+@media (hover: hover) and (pointer: fine) {
+  .series-switch button:hover:not(.active),
+  .period-switch button:hover:not(.active) { background: rgba(251, 249, 241, .11); }
+  .filter-segment button:hover:not(.active),
+  .analytics-periods button:hover:not(.active) { background: rgba(22, 69, 47, .075); }
+}
+
+@media (pointer: coarse) {
+  .series-switch button,
+  .period-switch button,
+  .filter-segment button,
+  .analytics-periods button { min-height: 44px; }
 }
