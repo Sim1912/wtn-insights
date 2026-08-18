@@ -2092,3 +2092,94 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   .overview-match-preview { padding: 16px; }
   .performance-trend-frame { height: 190px; }
 }
+
+/* Interaction polish — calm, composited feedback with no layout-changing hover states. */
+:root {
+  --duration-interaction: 220ms;
+  --duration-press: 120ms;
+  --ease-apple: cubic-bezier(.2, .75, .25, 1);
+  --ease-press: cubic-bezier(.32, 0, .18, 1);
+}
+
+button, a, input, select {
+  transition:
+    color var(--duration-interaction) var(--ease-apple),
+    background-color var(--duration-interaction) var(--ease-apple),
+    border-color var(--duration-interaction) var(--ease-apple),
+    box-shadow var(--duration-interaction) var(--ease-apple),
+    opacity var(--duration-interaction) var(--ease-apple),
+    transform var(--duration-press) var(--ease-press);
+}
+
+.rating-card,
+.match-card,
+.analytics-metric,
+.analytics-record-row,
+.editorial-observations button,
+.best-comebacks button,
+.pattern-list button,
+.partner-table button,
+.comeback-feature.comeback-summary button,
+.series-switch button,
+.period-switch button,
+.filter-segment button,
+.analytics-periods button,
+.nav-player-search {
+  transition:
+    background-color var(--duration-interaction) var(--ease-apple),
+    border-color var(--duration-interaction) var(--ease-apple),
+    box-shadow var(--duration-interaction) var(--ease-apple),
+    color var(--duration-interaction) var(--ease-apple),
+    transform var(--duration-press) var(--ease-press);
+}
+
+/* Tooltips must fade in; display toggles were the source of visual popping. */
+.analytics-metric > i {
+  display: block;
+  visibility: hidden;
+  opacity: 0;
+  transform: translate3d(0, 4px, 0);
+  pointer-events: none;
+  transition:
+    opacity var(--duration-fast) var(--ease-apple),
+    transform var(--duration-fast) var(--ease-apple),
+    visibility 0s linear var(--duration-fast);
+}
+.analytics-metric:hover > i, .analytics-metric:focus-visible > i {
+  visibility: visible;
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition-delay: 0s;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .rating-card:hover,
+  .match-card:hover,
+  .analytics-metric:not(:disabled):hover,
+  .analytics-record-row:not(:disabled):hover,
+  .editorial-observations button:hover,
+  .best-comebacks button:hover,
+  .pattern-list button:hover,
+  .partner-table button:hover {
+    transform: translate3d(0, -1px, 0);
+  }
+
+  .rating-card:hover,
+  .match-card:hover { box-shadow: 0 10px 26px rgba(8, 31, 19, .08); }
+  .series-switch button:hover:not(.active),
+  .period-switch button:hover:not(.active),
+  .filter-segment button:hover:not(.active),
+  .analytics-periods button:hover:not(.active) { background: rgba(251, 249, 241, .09); }
+  .nav-player-search button:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, .18); }
+}
+
+@media (pointer: fine) {
+  button:not(:disabled):active,
+  .navlinks a:active { transform: scale(.985); }
+  .rating-card:active,
+  .match-card:active { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analytics-metric > i { transform: none; }
+}
