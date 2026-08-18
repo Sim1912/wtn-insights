@@ -2296,3 +2296,10 @@ button, a, input, select {
 .performance-secondary .analytics-metric > small { color: rgba(251, 249, 241, .63); }
 .performance-secondary .analytics-metric > strong { color: var(--court-accent); }
 .performance-secondary .analytics-metric:hover { background: rgba(255, 255, 255, .045); }
+
+/* Let the trend use the full court width; the form remains a compact supporting panel. */
+.form-summary { grid-row: 2; }
+.performance-trend {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
