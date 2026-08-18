@@ -830,25 +830,6 @@ nav {
 .analytics-metric > span, .form-metric > span { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .analytics-metric > strong { margin-top: 7px; font-family: Georgia, "Times New Roman", serif; font-size: 30px; font-weight: 500; letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
 .analytics-metric > small, .form-metric > small { margin-top: 5px; color: var(--subtle); font-size: 9px; }
-.analytics-metric > i {
-  position: absolute;
-  left: 14px;
-  bottom: calc(100% - 8px);
-  z-index: 20;
-  width: min(260px, 80vw);
-  display: none;
-  padding: 10px 11px;
-  border-radius: 8px;
-  color: #fff;
-  background: #20251d;
-  box-shadow: 0 12px 30px rgba(18, 21, 16, .22);
-  font-size: 9px;
-  font-style: normal;
-  font-weight: 500;
-  line-height: 1.5;
-}
-.analytics-metric:hover > i, .analytics-metric:focus-visible > i { display: block; }
-.analytics-metric > i b { color: #c7cfbe; font-weight: 500; }
 .form-metric > div { display: flex; gap: 4px; margin-top: 12px; }
 .form-metric b { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; font-size: 10px; }
 .form-metric b.win { color: #192010; background: var(--acid); }
@@ -1214,7 +1195,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .analytics-metric:not(:disabled):hover { background: rgba(255, 255, 255, .58); }
 .analytics-metric > span, .form-metric > span { color: var(--color-text-tertiary); font-size: 8px; font-weight: 650; }
 .analytics-metric > strong { font-family: inherit; font-size: 29px; font-weight: 580; }
-.analytics-metric > i { border-radius: var(--radius-medium); box-shadow: var(--shadow-elevated); }
 .key-insights { margin-top: var(--space-3); padding: var(--space-5) var(--space-6); border-radius: var(--radius-large); background: var(--color-text-primary); }
 .key-insights p { font-family: inherit; font-size: 14px; font-weight: 430; }
 .comeback-layout { gap: var(--space-3); }
@@ -1845,8 +1825,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   .analytics-context-line { line-height: 1.45; }
   .performance-primary, .performance-scoring, .performance-secondary { grid-template-columns: 1fr 1fr; }
   .performance-summary .analytics-metric { padding: 14px 12px; }
-  .performance-summary .analytics-metric > i { width: min(240px, calc(100vw - 32px)); }
-  .performance-summary .analytics-metric:nth-child(even) > i { right: 10px; left: auto; }
   .performance-primary .analytics-metric > strong { font-size: 34px; }
   .editorial-observations > div { grid-template-columns: 1fr; }
   .editorial-observations button { min-height: 82px; border-right: 0; border-bottom: 1px solid var(--line-soft); }
@@ -2040,7 +2018,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .form-summary header small, .form-summary > p { color: var(--text-secondary); }
 .form-summary b.win { color: var(--grass-950); background: var(--court-accent); }
 .form-summary b.loss { color: var(--ivory-50); background: var(--grass-700); }
-.analytics-metric > i { color: var(--text-primary); background: var(--ivory-50); border: 1px solid var(--border-light); }
 .editorial-observations { margin-top: 18px; border-color: var(--border-light); }
 .editorial-observations h3 { color: var(--grass-900); }
 .editorial-observations button:hover { background: rgba(183,215,47,.08); }
@@ -2124,25 +2101,6 @@ button, a, input, select {
     transform var(--duration-press) var(--ease-press);
 }
 
-/* Tooltips must fade in; display toggles were the source of visual popping. */
-.analytics-metric > i {
-  display: block;
-  visibility: hidden;
-  opacity: 0;
-  transform: translate3d(0, 4px, 0);
-  pointer-events: none;
-  transition:
-    opacity var(--duration-fast) var(--ease-apple),
-    transform var(--duration-fast) var(--ease-apple),
-    visibility 0s linear var(--duration-fast);
-}
-.analytics-metric:hover > i, .analytics-metric:focus-visible > i {
-  visibility: visible;
-  opacity: 1;
-  transform: translate3d(0, 0, 0);
-  transition-delay: 0s;
-}
-
 @media (hover: hover) and (pointer: fine) {
   .rating-card:hover,
   .match-card:hover,
@@ -2169,8 +2127,4 @@ button, a, input, select {
   .navlinks a:active { transform: scale(.985); }
   .rating-card:active,
   .match-card:active { transform: none; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .analytics-metric > i { transform: none; }
 }

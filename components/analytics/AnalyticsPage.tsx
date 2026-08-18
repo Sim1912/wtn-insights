@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { calculateAnalytics, SIMILAR_WTN_BAND } from "@/lib/analytics/calculate";
 import { currentStreakText } from "@/lib/analytics/format";
@@ -28,13 +28,11 @@ const recordText = (result: RecordResult) => result.denominator ? `${result.wins
 const opponentNames = (match: NormalizedMatch) => match.opponents.map((opponent) => opponent.name).join(" / ") || "Unknown opponent";
 const matchCount = (count: number) => `${count} ${count === 1 ? "match" : "matches"}`;
 
-function Metric({ label, display, result, definition, supporting, className = "", animate = false, onExplore }: { label: string; display: string; result: MetricResult; definition: string; supporting?: string; className?: string; animate?: boolean; onExplore: () => void }) {
-  const definitionId = useId();
+function Metric({ label, display, result, supporting, className = "", animate = false, onExplore }: { label: string; display: string; result: MetricResult; definition: string; supporting?: string; className?: string; animate?: boolean; onExplore: () => void }) {
   const hasEvidence = result.eligibleMatchIds.length > 0;
-  return <button type="button" className={`analytics-metric ${className}`.trim()} onClick={hasEvidence ? onExplore : undefined} aria-disabled={!hasEvidence} aria-describedby={definitionId}>
+  return <button type="button" className={`analytics-metric ${className}`.trim()} onClick={hasEvidence ? onExplore : undefined} aria-disabled={!hasEvidence}>
     <span>{label}</span><strong>{animate && display.endsWith("%") && result.value != null ? <AnimatedNumber value={result.value * 100} decimals={0} suffix="%" /> : display}</strong>
     <small>{supporting ?? (result.denominator != null ? `${result.numerator ?? 0} of ${result.denominator}` : matchCount(result.sampleSize))}</small>
-    <i id={definitionId} role="tooltip">{definition}<b>{result.excludedMatches ? ` · ${result.excludedMatches} excluded` : ""}</b></i>
   </button>;
 }
 

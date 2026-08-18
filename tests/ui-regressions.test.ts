@@ -27,13 +27,12 @@ test("analytics uses honest rating and chart empty states", () => {
   assert.match(analytics, /report\.weakerOpponents\.denominator \? report\.favouriteLosses/);
 });
 
-test("analytics evidence interactions retain keyboard and screen-reader context", () => {
-  assert.match(analytics, /aria-describedby=\{definitionId\}/);
-  assert.match(analytics, /id=\{definitionId\} role="tooltip"/);
+test("analytics evidence interactions retain keyboard context without hover tooltips", () => {
+  assert.doesNotMatch(analytics, /role="tooltip"/);
+  assert.doesNotMatch(analytics, /aria-describedby=\{definitionId\}/);
   assert.match(analytics, /sibling\.inert = true/);
   assert.match(analytics, /document\.addEventListener\("keydown", handleKeyDown\)/);
   assert.match(analytics, /returnFocus\.current\?\.focus\(\)/);
   assert.match(styles, /\.record-stack \.analytics-record-row:focus-visible[^}]*outline-offset:\s*-3px/s);
-  assert.match(styles, /\.performance-summary \.analytics-metric:nth-child\(even\) > i[^}]*right:\s*10px/s);
   assert.match(styles, /\.analytics-dates input[^}]*\.trend-panel select[^}]*\.pattern-list button[^}]*\.partner-table button[^}]*min-height:\s*44px/s);
 });
