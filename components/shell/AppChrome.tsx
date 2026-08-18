@@ -5,6 +5,10 @@ import type { PlayerProfile } from "@/lib/wtn/types";
 
 type Page = "overview" | "matches" | "analytics";
 
+const updatedDate = (value?: string | null) => value
+  ? new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value))
+  : null;
+
 export function MainNavigation({ current, playerId, loading, onPlayerIdChange, onSubmit }: { current: Page; playerId: string; loading: boolean; onPlayerIdChange: (value: string) => void; onSubmit: (event: FormEvent) => void }) {
   const encoded = encodeURIComponent(playerId);
   return <nav className="main-navigation">
@@ -25,12 +29,20 @@ export function MainNavigation({ current, playerId, loading, onPlayerIdChange, o
 }
 
 export function PlayerHeader({ player, fallbackId, updatedAt }: { player: PlayerProfile | undefined; fallbackId: string; updatedAt?: string | null }) {
-  const updated = updatedAt ? new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric" }).format(new Date(updatedAt)) : null;
+  const updated = updatedDate(updatedAt);
   return <header className="player-bar shell" id="top">
     <div className="player-identity">
       <p>{player?.country ?? "WTN player"}</p>
       <h1>{player?.name ?? <span className="identity-skeleton" />}</h1>
       <small>{player?.id ?? fallbackId.toUpperCase()}{updated ? <> · Updated {updated}</> : null}</small>
     </div>
+  </header>;
+}
+
+export function PlayerContext({ player, fallbackId, updatedAt }: { player: PlayerProfile | undefined; fallbackId: string; updatedAt?: string | null }) {
+  const updated = updatedDate(updatedAt);
+  return <header className="player-context shell" id="top">
+    <h1>{player?.name ?? <span className="context-skeleton" />}</h1>
+    <p>{player?.id ?? fallbackId.toUpperCase()}{updated ? <> · Updated {updated}</> : null}</p>
   </header>;
 }

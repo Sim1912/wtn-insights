@@ -2,7 +2,7 @@ import { averageOpponentWtn, averagePlayerTeamWtn } from "../wtn/match-utils.ts"
 import type { NormalizedMatch, NormalizedSet } from "../wtn/types";
 import { decidingSetIndex, hasUsableSets, isBestOfFive, isCompetitiveMatch, matchTiebreakSets, normalSets, playerScore, playerWonSet, setSequence } from "./eligibility.ts";
 import { monthlyTrends } from "./trends.ts";
-import type { AnalyticsReport, DataCoverage, MetricResult, PatternRow, RatingBandRow, RecordResult } from "./types";
+import type { AnalyticsInsight, AnalyticsReport, DataCoverage, MetricResult, PatternRow, RatingBandRow, RecordResult } from "./types";
 
 export const SIMILAR_WTN_BAND = 1;
 
@@ -61,8 +61,15 @@ function closeDecider(match: NormalizedMatch): boolean {
   return hasTiebreak || (Math.max(...score) >= 4 && difference <= 2);
 }
 
+function chronologicalMatchOrder(a: NormalizedMatch, b: NormalizedMatch): number {
+  const completed = (a.completedAt ?? a.date ?? "").localeCompare(b.completedAt ?? b.date ?? "");
+  if (completed) return completed;
+  const started = (a.date ?? "").localeCompare(b.date ?? "");
+  return started || a.id.localeCompare(b.id);
+}
+
 function streaks(matches: NormalizedMatch[]) {
-  const chronological = [...matches].sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+  const chronological = [...matches].sort(chronologicalMatchOrder);
   let longestWin = 0; let longestLoss = 0; let currentResult: "win" | "loss" | null = null; let currentCount = 0;
   for (const match of chronological) {
     if (match.result !== "win" && match.result !== "loss") continue;
@@ -145,7 +152,7 @@ export function calculateAnalytics(matches: NormalizedMatch[]): AnalyticsReport 
   const straightLosses = scored.filter((match) => match.result === "loss" && setSequence(match).every((result) => result === "loss"));
   const comebackWinners = lostFirst.filter((match) => match.result === "win");
   const streak = streaks(competitive);
-  const sortedRecent = [...competitive].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+  const sortedRecent = [...competitive].sort((a, b) => chronologicalMatchOrder(b, a));
   const opponentWins = ratingEligible.filter((row) => row.match.result === "win").sort((a, b) => a.opponent - b.opponent);
   const opponentLosses = ratingEligible.filter((row) => row.match.result === "loss").sort((a, b) => b.opponent - a.opponent);
   const bestComebacks = comebackWinners.map((match) => {
@@ -184,11 +191,35 @@ export function calculateAnalytics(matches: NormalizedMatch[]): AnalyticsReport 
     currentStreak: streak.current, longestWinStreak: streak.longestWin, longestLossStreak: streak.longestLoss, partners, bestComebacks, insights: [],
   };
 
-  const insights: string[] = [];
-  if (report.comebackFirstSet.denominator && report.comebackFirstSet.denominator >= 3) insights.push(`Won ${report.comebackFirstSet.wins} of ${report.comebackFirstSet.denominator} matches after losing the first set.`);
-  if (report.deciding.denominator && report.deciding.denominator >= 3) insights.push(`Deciding-set record: ${report.deciding.wins}–${report.deciding.losses} across ${report.deciding.denominator} matches.`);
-  if (report.strongerOpponents.denominator && report.strongerOpponents.denominator >= 3) insights.push(`${report.strongerOpponents.wins} wins from ${report.strongerOpponents.denominator} matches against stronger-rated opposition.`);
-  if (insights.length < 3 && report.normalTiebreaks.denominator && report.normalTiebreaks.denominator >= 4) insights.push(`Tiebreak record: ${report.normalTiebreaks.wins}–${report.normalTiebreaks.losses} across ${report.normalTiebreaks.denominator} normal-set tiebreaks.`);
+  const insights: AnalyticsInsight[] = [];
+  if (report.comebackFirstSet.denominator && report.comebackFirstSet.denominator >= 3) insights.push({
+    label: "Opening-set response",
+    text: `Won ${report.comebackFirstSet.wins} of ${report.comebackFirstSet.denominator} matches after losing the first set.`,
+    sampleSize: report.comebackFirstSet.eligibleMatchIds.length,
+    matchIds: report.comebackFirstSet.eligibleMatchIds,
+    evidenceReason: "Lost the first completed normal set",
+  });
+  if (report.deciding.denominator && report.deciding.denominator >= 3) insights.push({
+    label: "Deciding matches",
+    text: `Deciding-set record: ${report.deciding.wins}–${report.deciding.losses} across ${report.deciding.denominator} matches.`,
+    sampleSize: report.deciding.eligibleMatchIds.length,
+    matchIds: report.deciding.eligibleMatchIds,
+    evidenceReason: "Both teams were one set from winning before the final set",
+  });
+  if (report.strongerOpponents.denominator && report.strongerOpponents.denominator >= 3) insights.push({
+    label: "Opponent challenge",
+    text: `${report.strongerOpponents.wins} wins from ${report.strongerOpponents.denominator} matches against stronger-rated opposition.`,
+    sampleSize: report.strongerOpponents.eligibleMatchIds.length,
+    matchIds: report.strongerOpponents.eligibleMatchIds,
+    evidenceReason: `Opponent entered at least ${SIMILAR_WTN_BAND.toFixed(1)} WTN stronger`,
+  });
+  if (insights.length < 3 && report.normalTiebreaks.denominator && report.normalTiebreaks.denominator >= 4) insights.push({
+    label: "Tiebreak execution",
+    text: `Tiebreak record: ${report.normalTiebreaks.wins}–${report.normalTiebreaks.losses} across ${report.normalTiebreaks.denominator} normal-set tiebreaks.`,
+    sampleSize: report.normalTiebreaks.eligibleMatchIds.length,
+    matchIds: report.normalTiebreaks.eligibleMatchIds,
+    evidenceReason: "Match included at least one normal-set tiebreak",
+  });
   report.insights = insights.slice(0, 3);
   return report;
 }

@@ -11,8 +11,7 @@ const statusLabel: Record<NormalizedMatch["status"], string> = {
 };
 
 function participantRatings(players: MatchParticipant[]) {
-  if (!players.length || players.some((player) => player.wtnBeforeMatch == null)) return null;
-  return players.map((player) => player.wtnBeforeMatch!.toFixed(2)).join(" / ");
+  return players.map((player) => player.wtnBeforeMatch?.toFixed(2) ?? null);
 }
 
 function scoreValue(set: NormalizedSet, side: 1 | 2) {
@@ -34,8 +33,22 @@ function ScoreCell({ set, side }: { set: NormalizedSet; side: 1 | 2 }) {
   </td>;
 }
 
-function TeamName({ names, label }: { names: string[]; label: string }) {
-  return <div className="team-name"><span className="team-label">{label}</span>{names.map((name) => <strong key={name}>{name}</strong>)}</div>;
+function TeamName({ names, label }: { names: string[]; label?: string }) {
+  return <div className="team-name">
+    {label ? <span className="team-label">{label}</span> : null}
+    <span className="team-members">{names.map((name) => <strong key={name}>{name}</strong>)}</span>
+  </div>;
+}
+
+function RatingCell({ values, players, strength }: { values: Array<string | null>; players: string[]; strength?: "stronger" | "weaker" | "equal" | "unknown" }) {
+  const entries = players.length ? players : ["Player"];
+  return <td className="wtn-cell" data-team-size={entries.length} data-strength={strength === "stronger" ? "stronger" : undefined}>
+    <span className="wtn-values">{entries.map((name, index) => {
+      const value = values[index] ?? null;
+      return <span key={`${name}-${index}`} aria-label={`${name} WTN before match ${value ?? "unavailable"}`}>{value ?? "—"}</span>;
+    })}</span>
+    {strength === "stronger" ? <small>Stronger</small> : null}
+  </td>;
 }
 
 function ParticipantIds({ label, participants }: { label: string; participants: Array<{ name: string; tennisId?: string | null; id?: string | null }> }) {
@@ -61,52 +74,57 @@ export function MatchCard({
   const strength = opponentStrength(match);
   const upset = match.result === "win" && strength === "stronger";
   const close = isCloseMatch(match);
-  const playerRatings = [match.playerWtnBeforeMatch, ...match.partners.map((partner) => partner.wtnBeforeMatch)];
+  const playerRatings = [match.playerWtnBeforeMatch, ...match.partners.map((partner) => partner.wtnBeforeMatch)].map((value) => value?.toFixed(2) ?? null);
   const opponentRatings = participantRatings(match.opponents);
-  const playerRatingText = playerRatings.every((value) => value != null) ? playerRatings.map((value) => value!.toFixed(2)).join(" / ") : null;
   const playerTeamWtn = averagePlayerTeamWtn(match);
   const opponentTeamWtn = averageOpponentWtn(match);
   const difference = playerTeamWtn != null && opponentTeamWtn != null ? Math.abs(playerTeamWtn - opponentTeamWtn) : null;
   const contextBits = [match.matchType === "unknown" ? null : match.matchType, match.surface, match.environment].filter(Boolean);
   const abnormalStatus = match.status !== "completed" && match.status !== "unknown";
   const fallbackScore = renderScore(match.sets, match.playerSide, match.status, match.scoreText);
+  const resultLabel = match.result === "win" ? "Win" : match.result === "loss" ? "Loss" : "Result pending";
+  const resultInsight = upset ? "Upset win" : close ? "Close match" : null;
 
-  return <article className={`match-card ${match.result} ${upset ? "upset" : ""} ${expanded ? "expanded" : ""}`}>
+  return <article className={`match-card ${expanded ? "expanded" : ""}`} data-result={match.result} data-insight={upset ? "upset" : close ? "close" : undefined}>
     <header className="match-card-header">
-      <div className="match-labels">
-        <span className={`result-chip ${match.result}`}>{match.result === "win" ? "Win" : match.result === "loss" ? "Loss" : "Result pending"}</span>
-        {upset ? <span className="insight-chip upset-chip">Upset</span> : close ? <span className="insight-chip close-chip">Close match</span> : null}
-        {abnormalStatus && <span className="status-chip">{statusLabel[match.status]}</span>}
+      <div className="match-event">
+        <strong>{match.tournament ?? "Event unavailable"}</strong>
+        {match.round ? <span>{match.round}</span> : null}
       </div>
-      <time dateTime={match.date ?? undefined}>{match.date ? dateFormatter.format(new Date(match.date)) : "Date unavailable"}</time>
+      <div className="match-result-meta">
+        <span className={`result-chip ${match.result}`}>{resultLabel}</span>
+        {abnormalStatus ? <span className="status-label">{statusLabel[match.status]}</span> : null}
+        <time dateTime={match.date ?? undefined}>{match.date ? dateFormatter.format(new Date(match.date)) : "Date unavailable"}</time>
+      </div>
     </header>
 
     <table className="tennis-score">
       <caption className="sr-only">{`${playerTeam.join(" and ")} versus ${opponentNames.join(" and ")}. ${fallbackScore}`}</caption>
-      <colgroup><col />{(match.sets.length ? match.sets : [null]).map((_, index) => <col className="score-column" key={index} />)}</colgroup>
-      <thead><tr><th scope="col">Players</th>{match.sets.length ? match.sets.map((set, index) => <th scope="col" aria-label={set.isMatchTiebreak ? "Match tiebreak" : undefined} key={index}>{set.isMatchTiebreak ? "MTB" : `Set ${index + 1}`}</th>) : <th scope="col">Score</th>}</tr></thead>
+      <colgroup><col className="player-column" /><col className="wtn-column" />{(match.sets.length ? match.sets : [null]).map((_, index) => <col className="score-column" key={index} />)}</colgroup>
+      <thead><tr><th scope="col"><span className="sr-only">Players</span></th><th scope="col"><abbr title="World Tennis Number">WTN</abbr></th>{match.sets.length ? match.sets.map((set, index) => <th scope="col" aria-label={set.isMatchTiebreak ? "Match tiebreak" : undefined} key={index}>{set.isMatchTiebreak ? "MTB" : `Set ${index + 1}`}</th>) : <th scope="col">Score</th>}</tr></thead>
       <tbody>
         <tr className={match.winningSide === match.playerSide ? "winning-team" : ""}>
-          <th scope="row"><TeamName names={playerTeam} label={match.matchType === "doubles" ? "Your team" : "Player"} /></th>
+          <th scope="row"><TeamName names={playerTeam} label={match.matchType === "doubles" ? "Your team" : undefined} /></th>
+          <RatingCell values={playerRatings} players={playerTeam} />
           {match.sets.length ? match.sets.map((set, index) => <ScoreCell key={`player-${index}`} set={set} side={match.playerSide} />) : <td className="score-status">{fallbackScore}</td>}
         </tr>
         <tr className={match.winningSide === (match.playerSide === 1 ? 2 : 1) ? "winning-team" : ""}>
-          <th scope="row"><TeamName names={opponentNames} label={match.matchType === "doubles" ? "Opponents" : "Opponent"} /></th>
+          <th scope="row"><TeamName names={opponentNames} label={match.matchType === "doubles" ? "Opposing team" : undefined} /></th>
+          <RatingCell values={opponentRatings} players={opponentNames} strength={strength} />
           {match.sets.length ? match.sets.map((set, index) => <ScoreCell key={`opponent-${index}`} set={set} side={match.playerSide === 1 ? 2 : 1} />) : <td className="score-status muted-status">—</td>}
         </tr>
       </tbody>
     </table>
 
-    {(playerRatingText || opponentRatings) && <div className="wtn-versus"><span>WTN before</span><strong>{playerRatingText ?? "—"}</strong><i>vs</i><strong>{opponentRatings ?? "—"}</strong>{strength !== "unknown" && <small>{strength === "stronger" ? "Stronger opposition" : strength === "weaker" ? "Weaker opposition" : "Evenly rated"}</small>}</div>}
-
-    <div className="match-location">
-      <p>{match.tournament ?? "Event unavailable"}{match.round ? <span> · {match.round}</span> : null}</p>
-      {contextBits.length > 0 && <small>{contextBits.join(" · ")}</small>}
+    <div className="match-card-footer">
+      <div className="match-context">
+        {contextBits.length > 0 ? <p>{contextBits.join(" · ")}</p> : <span>Match details</span>}
+        {resultInsight ? <small>{resultInsight}</small> : null}
+      </div>
+      <button className="details-toggle" type="button" aria-expanded={expanded} aria-controls={detailsId} aria-label={expanded ? "Hide match details" : "Show match details"} onClick={onToggle}>
+        <span>Details</span><b className="details-chevron" aria-hidden="true">{expanded ? "▴" : "▾"}</b>
+      </button>
     </div>
-
-    <button className="details-toggle" type="button" aria-expanded={expanded} aria-controls={detailsId} onClick={onToggle}>
-      <span>{expanded ? "Hide match details" : "Match details"}</span><b aria-hidden="true">{expanded ? "−" : "+"}</b>
-    </button>
     <div className="details-reveal" data-open={expanded} aria-hidden={!expanded} id={detailsId}>
       <div className="match-details">
         <div className="detail-insight">

@@ -50,6 +50,14 @@ export type TrendPoint = {
 
 export type PartnerRow = { name: string; wins: number; losses: number; matchIds: string[] };
 
+export type AnalyticsInsight = {
+  label: string;
+  text: string;
+  sampleSize: number;
+  matchIds: string[];
+  evidenceReason: string;
+};
+
 export type AnalyticsReport = {
   coverage: DataCoverage;
   competitiveMatches: NormalizedMatch[];
@@ -98,5 +106,5 @@ export type AnalyticsReport = {
   longestLossStreak: number;
   partners: PartnerRow[];
   bestComebacks: Array<{ match: NormalizedMatch; setsBehind: number; reason: string }>;
-  insights: string[];
+  insights: AnalyticsInsight[];
 };

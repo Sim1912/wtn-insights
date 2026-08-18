@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { calculateAnalytics } from "../lib/analytics/calculate.ts";
 import { decidingSetIndex, isCompetitiveMatch } from "../lib/analytics/eligibility.ts";
+import { currentStreakText } from "../lib/analytics/format.ts";
 import { filterAnalyticsMatches } from "../lib/analytics/trends.ts";
 import type { NormalizedMatch, NormalizedSet } from "../lib/wtn/types.ts";
 
@@ -140,6 +141,47 @@ test("builds monthly, rolling-form and opponent-strength trends", () => {
   assert.equal(trends[1].rolling5WinRate, 2 / 3);
   assert.equal(trends[1].rolling10Sample, 3);
   assert.equal(trends[1].averageOpponentWtn, 20);
+});
+
+test("orders recent form newest-first and calculates the streak from the newest result", () => {
+  const report = calculateAnalytics([
+    { ...straightLoss, id: "old-loss", date: "2026-01-01T00:00:00.000Z" },
+    { ...straightWin, id: "middle-win", date: "2026-02-01T00:00:00.000Z" },
+    { ...straightWin, id: "new-win", date: "2026-03-01T00:00:00.000Z" },
+  ]);
+  assert.deepEqual(report.recentForm, ["win", "win", "loss"]);
+  assert.deepEqual(report.currentStreak, { result: "win", count: 2 });
+  assert.equal(currentStreakText(report.currentStreak), "2 wins in a row");
+  assert.equal(currentStreakText({ result: "win", count: 1 }), "1 win in a row");
+  assert.equal(currentStreakText({ result: "loss", count: 1 }), "1 loss in a row");
+  assert.equal(currentStreakText({ result: "loss", count: 3 }), "3 losses in a row");
+});
+
+test("uses completion time and a stable ID tie-breaker for form and streak order", () => {
+  const sharedStart = "2026-04-01T09:00:00.000Z";
+  const completionOrdered = calculateAnalytics([
+    { ...straightWin, id: "early-win", date: sharedStart, completedAt: "2026-04-01T10:00:00.000Z" },
+    { ...straightLoss, id: "middle-loss", date: sharedStart, completedAt: "2026-04-01T11:00:00.000Z" },
+    { ...straightLoss, id: "late-loss", date: sharedStart, completedAt: "2026-04-01T12:00:00.000Z" },
+  ]);
+  assert.deepEqual(completionOrdered.recentForm, ["loss", "loss", "win"]);
+  assert.deepEqual(completionOrdered.currentStreak, { result: "loss", count: 2 });
+
+  const exactTie = calculateAnalytics([
+    { ...straightWin, id: "a-win", date: sharedStart, completedAt: null },
+    { ...straightLoss, id: "z-loss", date: sharedStart, completedAt: null },
+  ]);
+  assert.deepEqual(exactTie.recentForm, ["loss", "win"]);
+  assert.deepEqual(exactTie.currentStreak, { result: "loss", count: 1 });
+});
+
+test("analytics observations retain sample sizes and evidence match IDs", () => {
+  const report = calculateAnalytics([comeback, straightLoss, lostLead, fiveSetComeback]);
+  const openingSet = report.insights.find((insight) => insight.label === "Opening-set response");
+  assert.ok(openingSet);
+  assert.equal(openingSet.sampleSize, 3);
+  assert.deepEqual(openingSet.matchIds, report.comebackFirstSet.eligibleMatchIds);
+  assert.ok(openingSet.evidenceReason.length > 0);
 });
 
 test("fixtures cover all required normalized match shapes", () => {

@@ -18,15 +18,15 @@ export function MatchFilters({ filters, tournaments, visible, total, onChange, o
 
   return <section className={`match-filter-bar ${expanded ? "filters-open" : ""}`} aria-label="Match filters">
     <div className="filter-primary">
-      <div className="filter-segment" aria-label="Result">
+      <div className="filter-segment" role="group" aria-label="Result">
         {(["all", "win", "loss"] as const).map((value) => <button key={value} type="button" aria-pressed={filters.result === value} className={filters.result === value ? "active" : ""} onClick={() => set("result", value)}>{value === "all" ? "All" : value === "win" ? "Wins" : "Losses"}</button>)}
       </div>
-      <div className="filter-segment format-segment" aria-label="Match type">
+      <div className="filter-segment format-segment" role="group" aria-label="Match type">
         {(["all", "singles", "doubles"] as const).map((value) => <button key={value} type="button" aria-pressed={filters.matchType === value} className={filters.matchType === value ? "active" : ""} onClick={() => set("matchType", value)}>{value === "all" ? "Any" : value === "singles" ? "Singles" : "Doubles"}</button>)}
       </div>
       <label className="opponent-search"><span className="sr-only">Search opponents</span><input type="search" value={filters.opponent} onChange={(event) => set("opponent", event.target.value)} placeholder="Search opponent" /></label>
       <button className="more-filters" type="button" aria-expanded={expanded} aria-controls="secondary-match-filters" onClick={() => setExpanded((value) => !value)}>Filters{activeSecondary ? <span>{activeSecondary}</span> : null}</button>
-      <p className="filter-count" aria-live="polite"><strong>{visible}</strong><span> / {total}</span></p>
+      <p className="filter-count" aria-live="polite"><strong>{visible}</strong><span>{visible === total ? " matches" : ` of ${total}`}</span>{visible !== total ? <small> matches</small> : null}</p>
     </div>
     <div className="filter-disclosure" id="secondary-match-filters" data-open={expanded} aria-hidden={!expanded} inert={!expanded}>
       <div className="filter-secondary">

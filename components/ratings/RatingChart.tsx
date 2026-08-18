@@ -63,27 +63,26 @@ export function RatingChart({
   );
   const domain = useMemo(() => ratingDomain(visiblePoints), [visiblePoints]);
   const trend = visiblePoints.length > 1 ? visiblePoints.at(-1)!.value - visiblePoints[0].value : null;
-  const color = series === "singles" ? "var(--color-chart-primary)" : "var(--color-chart-secondary)";
+  const color = "var(--color-chart-primary)";
   const latestDate = visiblePoints.at(-1)?.date ?? "";
 
-  return <section className="rating-panel" aria-label="Interactive rating history">
+  return <section className="rating-panel" id="rating-history-chart" aria-label="Interactive rating history">
     <header className="rating-chart-header">
-      <h2>{series === "singles" ? "Singles" : "Doubles"} development</h2>
-      <div className="series-switch" aria-label="Rating type">
-        {(["singles", "doubles"] as const).map((value) => <button type="button" key={value} aria-pressed={series === value} className={series === value ? "active" : ""} onClick={() => onSeriesChange(value)}>{value === "singles" ? "Singles" : "Doubles"}</button>)}
-      </div>
+      <div><h2>WTN history</h2><p>Lower WTN is stronger</p></div>
+      <div className="chart-trend"><span>Period change</span><strong className={trend == null ? "" : trend <= 0 ? "positive" : "negative"}>{trend == null ? "—" : formatChange(trend)}</strong></div>
     </header>
-    <div className="chart-toolbar">
+    <div className="chart-controls">
+      <div className="series-switch" aria-label="Rating type">
+        {(["singles", "doubles"] as const).map((value) => <button type="button" key={value} aria-pressed={series === value} aria-controls="rating-history-chart" className={series === value ? "active" : ""} onClick={() => onSeriesChange(value)}>{value === "singles" ? "Singles" : "Doubles"}</button>)}
+      </div>
       <div className="period-switch" aria-label="Rating period">
         {periodLabels.map(([value, label]) => <button key={value} type="button" aria-pressed={period === value} className={period === value ? "active" : ""} onClick={() => setPeriod(value)}>{label}</button>)}
       </div>
-      <div className="chart-trend"><span>Period change</span><strong className={trend == null ? "" : trend <= 0 ? "positive" : "negative"}>{trend == null ? "—" : formatChange(trend)}</strong></div>
     </div>
     <div className="chart-frame">
-      <span className="stronger-label">Stronger ↑ <small>lower WTN</small></span>
-      {visiblePoints.length ? <ChartEntrance><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
-        <LineChart data={chartPoints} accessibilityLayer margin={{ top: 34, right: 18, bottom: 3, left: 0 }}>
-          <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 7" />
+      {visiblePoints.length ? <ChartEntrance><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+        <LineChart data={chartPoints} accessibilityLayer margin={{ top: 20, right: 18, bottom: 3, left: 0 }}>
+          <CartesianGrid vertical={false} stroke="var(--line-soft)" strokeDasharray="3 7" />
           <XAxis dataKey="timestamp" type="number" domain={["dataMin", "dataMax"]} scale="time" tickFormatter={(value) => axisDateFormatter.format(new Date(value))} tickLine={false} axisLine={false} minTickGap={52} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} dy={9} />
           <YAxis reversed domain={domain} width={46} tickCount={5} tickFormatter={(value: number) => value.toFixed(1)} tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
           <Tooltip content={(props) => <RatingTooltip active={props.active} payload={props.payload as TooltipEntry[]} series={series} />} isAnimationActive={!reducedMotion} allowEscapeViewBox={{ x: false, y: false }} reverseDirection={{ x: true, y: false }} cursor={{ stroke: "var(--color-text-tertiary)", strokeDasharray: "3 4" }} />

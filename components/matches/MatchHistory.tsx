@@ -33,9 +33,9 @@ export function MatchHistory({ matches, player, loading = false }: { matches: No
     <header className="match-heading" data-reveal><h2>Match history</h2></header>
     <div data-reveal><MatchFilters filters={filters} tournaments={tournaments} visible={visibleMatches.length} total={matches.length} onChange={(next) => { setFilters(next); setExpandedId(null); }} onReset={resetFilters} /></div>
     <div data-reveal><MatchSummary matches={visibleMatches} /></div>
-    <div data-reveal><MatchResultsChart matches={visibleMatches} /></div>
-    <section className="match-list" aria-busy={loading}>
-      {visibleMatches.length ? visibleMatches.map((match) => <div className="match-reveal" data-reveal key={match.id}><MatchCard match={match} player={player} expanded={expandedId === match.id} onToggle={() => setExpandedId((current) => current === match.id ? null : match.id)} /></div>)
+    <MatchResultsChart matches={visibleMatches} />
+    <section className="match-list" aria-busy={loading} aria-label={`${visibleMatches.length} filtered matches`}>
+      {visibleMatches.length ? visibleMatches.map((match) => <div className="match-reveal" key={match.id}><MatchCard match={match} player={player} expanded={expandedId === match.id} onToggle={() => setExpandedId((current) => current === match.id ? null : match.id)} /></div>)
         : <div className="match-empty"><strong>No matches fit these filters</strong><p>Clear the filters to return to the full record.</p><button type="button" onClick={resetFilters}>Clear filters</button></div>}
     </section>
   </RevealScope>;
