@@ -13,7 +13,7 @@ export function MainNavigation({ current, playerId, loading, onPlayerIdChange, o
   const encoded = encodeURIComponent(playerId);
   return <nav className="main-navigation">
     <div className="navigation-inner">
-      <a className="brand" href={`/?tennisId=${encoded}`} aria-label="WTN Insights home"><span>W</span><b>WTN Insights</b></a>
+      <a className="brand" href={`/?tennisId=${encoded}`} aria-label="WTN Insights home"><span>W</span><b>WTN Insights</b><small>Grass Court Edition</small></a>
       <div className="navlinks" aria-label="Dashboard sections">
         <a aria-current={current === "overview" ? "page" : undefined} className={current === "overview" ? "active" : ""} href={`/?tennisId=${encoded}`}>Overview</a>
         <a aria-current={current === "matches" ? "page" : undefined} className={current === "matches" ? "active" : ""} href={`/matches?tennisId=${encoded}`}>Matches</a>
@@ -22,7 +22,7 @@ export function MainNavigation({ current, playerId, loading, onPlayerIdChange, o
       <form className="nav-player-search" onSubmit={onSubmit}>
         <label className="sr-only" htmlFor={`${current}-player-id`}>Load another Tennis ID</label>
         <input id={`${current}-player-id`} value={playerId} onChange={(event) => onPlayerIdChange(event.target.value)} placeholder="Tennis ID" autoCapitalize="characters" />
-        <button disabled={loading} aria-label={loading ? "Loading player" : "Load player"}>{loading ? "…" : "Go"}</button>
+        <button disabled={loading} aria-label={loading ? "Loading player" : "Load player"}>{loading ? "…" : "↗"}</button>
       </form>
     </div>
   </nav>;
