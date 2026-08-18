@@ -2285,7 +2285,7 @@ button, a, input, select {
 
 /* Keep the whole top performance row on the grass field. */
 .performance-secondary {
-  background: var(--grass-800);
+  background: var(--grass-900);
   border-color: var(--border-dark);
 }
 .performance-secondary .analytics-metric {
