@@ -210,6 +210,11 @@ export function AnalyticsPage() {
             <div aria-label="Recent form, newest match first">{report.recentForm.length ? report.recentForm.map((result, index) => <b key={index} className={result} aria-label={result === "win" ? "Win" : "Loss"}>{result === "win" ? "W" : "L"}</b>) : "—"}</div>
             <p>{currentStreakText(report.currentStreak)}</p>
           </div>
+          <div className="form-metric form-streak">
+            <span>Current streak</span>
+            <strong>{report.currentStreak ? `${report.currentStreak.count}${report.currentStreak.result === "win" ? "W" : "L"}` : "—"}</strong>
+            <small>{report.currentStreak ? `${report.currentStreak.result === "win" ? "Winning" : "Losing"} sequence` : "No decided matches"}</small>
+          </div>
         </div>
         {report.insights.length > 0 && <aside className="editorial-observations" aria-labelledby="observations-title">
           <header><h3 id="observations-title">Observations</h3><p>From the current selection</p></header>

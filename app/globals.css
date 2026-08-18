@@ -2303,3 +2303,52 @@ button, a, input, select {
   grid-column: 1 / -1;
   grid-row: 3;
 }
+
+/* On desktop, this is a true four-column scorecard; the grid does not break after row one. */
+@media (min-width: 761px) {
+  .performance-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .performance-primary,
+  .performance-scoring,
+  .performance-secondary { display: contents; }
+  .performance-primary .metric-record { grid-column: 1; grid-row: 1; }
+  .performance-primary .metric-win-rate { grid-column: 2; grid-row: 1; }
+  .performance-secondary .analytics-metric:nth-child(1) { grid-column: 3; grid-row: 1; }
+  .performance-secondary .analytics-metric:nth-child(2) { grid-column: 4; grid-row: 1; }
+  .performance-scoring .analytics-metric:nth-child(1) { grid-column: 1; grid-row: 2; }
+  .performance-scoring .analytics-metric:nth-child(2) { grid-column: 2; grid-row: 2; }
+  .form-summary { grid-column: 3; grid-row: 2; }
+  .form-streak { grid-column: 4; grid-row: 2; }
+  .performance-summary .analytics-metric,
+  .form-summary,
+  .form-streak {
+    min-height: 104px;
+    border-right: 1px solid var(--border-dark);
+    border-bottom: 1px solid var(--border-dark);
+    background: transparent;
+  }
+  .performance-secondary .analytics-metric:nth-child(2),
+  .form-streak { border-right: 0; }
+}
+
+.form-summary,
+.form-streak { color: var(--ivory-50); background: transparent; }
+.form-summary header > span,
+.form-summary header small,
+.form-summary > p,
+.form-streak > span,
+.form-streak > small { color: rgba(251, 249, 241, .63); }
+.form-streak {
+  min-height: 104px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+.form-streak > span { font-size: 10px; font-weight: 570; }
+.form-streak > strong { margin-top: 7px; color: var(--court-accent); font-size: 28px; font-weight: 580; }
+.form-streak > small { margin-top: 5px; font-size: 9px; }
+
+@media (max-width: 760px) {
+  .form-streak { grid-column: 1; grid-row: auto; border-bottom: 1px solid var(--border-dark); }
+}
