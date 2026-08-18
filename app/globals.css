@@ -2282,3 +2282,17 @@ button, a, input, select {
   .analytics-section { margin-top: var(--space-8); padding-top: var(--space-6); }
   .analytics-scoring .score-analysis-grid { padding: var(--space-2); }
 }
+
+/* Keep the whole top performance row on the grass field. */
+.performance-secondary {
+  background: var(--grass-800);
+  border-color: var(--border-dark);
+}
+.performance-secondary .analytics-metric {
+  border-color: var(--border-dark);
+  color: var(--ivory-50);
+}
+.performance-secondary .analytics-metric > span,
+.performance-secondary .analytics-metric > small { color: rgba(251, 249, 241, .63); }
+.performance-secondary .analytics-metric > strong { color: var(--court-accent); }
+.performance-secondary .analytics-metric:hover { background: rgba(255, 255, 255, .045); }
