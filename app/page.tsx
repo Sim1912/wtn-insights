@@ -6,8 +6,7 @@ import { RatingChart } from "@/components/ratings/RatingChart";
 import { MainNavigation, PlayerContext, PlayerHeader } from "@/components/shell/AppChrome";
 import { AnimatedNumber, ScrollReveal } from "@/components/ui/Motion";
 import { requestPlayer } from "@/lib/wtn/client";
-import { renderScore } from "@/lib/wtn/score";
-import type { NormalizedMatch, WtnApiResponse } from "@/lib/wtn/types";
+import type { WtnApiResponse } from "@/lib/wtn/types";
 
 const DEFAULT_TENNIS_ID = "MAU8054205";
 const initialParameter = (key: string) => typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get(key);
@@ -28,19 +27,6 @@ function OverviewSkeleton() {
     <div className="rating-skeleton"><i /><span /><span /></div><div className="rating-skeleton"><i /><span /><span /></div>
     <div className="chart-skeleton"><i /><span /></div>
   </div>;
-}
-
-function LatestMatchPreview({ matches }: { matches: NormalizedMatch[] }) {
-  const latest = [...matches]
-    .filter((match) => match.date)
-    .sort((left, right) => `${right.completedAt ?? right.date ?? ""}`.localeCompare(`${left.completedAt ?? left.date ?? ""}`))[0];
-  if (!latest) return null;
-  const opponent = latest.opponents.map((entry) => entry.name).join(" / ") || "Opponent unavailable";
-  const result = latest.result === "win" ? "Latest win" : latest.result === "loss" ? "Latest loss" : "Latest match";
-  return <article className="overview-match-preview" aria-label="Latest match">
-    <div><span>{result}</span><strong>{opponent}</strong><small>{latest.tournament ?? "Event unavailable"}{latest.round ? ` · ${latest.round}` : ""}</small></div>
-    <b className={latest.result}>{renderScore(latest.sets, latest.playerSide, latest.status, latest.scoreText)}</b>
-  </article>;
 }
 
 export function Dashboard({ initialTab }: { initialTab: "overview" | "matches" }) {
@@ -114,7 +100,6 @@ export function Dashboard({ initialTab }: { initialTab: "overview" | "matches" }
               <RatingCard title="Doubles WTN" value={ratings.doubles} change={ratings.doublesChange} confidence={ratings.doublesConfidence} selected={series === "doubles"} onSelect={() => setSeries("doubles")} />
           </section></ScrollReveal>
           <ScrollReveal delay={60}><RatingChart history={ratings.history} series={series} onSeriesChange={setSeries} /></ScrollReveal>
-          <ScrollReveal delay={120}><LatestMatchPreview matches={data.matches} /></ScrollReveal>
         </> : <OverviewSkeleton />}
       </div> : <div className="shell content">{data && player ? <MatchHistory key={player.id} matches={data.matches} player={player} loading={status === "loading"} /> : <MatchHistorySkeleton />}</div>}
   </main>;

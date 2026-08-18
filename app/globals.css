@@ -2051,14 +2051,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .comeback-feature.comeback-summary button { color: var(--grass-700); }
 .trend-panel, .rating-band-panel, .best-comebacks, .average-table, .pattern-list, .partner-table { border: 1px solid var(--border-light); background: var(--ivory-50); }
 .analytics-charts.contextual-chart { grid-template-columns: minmax(0, .85fr); }
-.overview-match-preview { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px; padding: 18px 22px; border: 1px solid var(--border-light); border-radius: 0 0 12px 12px; background: var(--ivory-50); }
-.overview-match-preview > div { min-width: 0; display: grid; gap: 3px; }
-.overview-match-preview span { color: var(--grass-600); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.overview-match-preview strong { overflow: hidden; color: var(--grass-950); font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
-.overview-match-preview small { overflow: hidden; color: var(--text-secondary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.overview-match-preview > b { color: var(--grass-950); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.overview-match-preview > b.win { color: var(--grass-700); }
-.overview-match-preview > b.loss { color: var(--negative); }
 .opponent-highlights { background: var(--grass-800); }
 .opponent-highlights span, .opponent-highlights small { color: rgba(251,249,241,.63); }
 .opponent-highlights strong { color: var(--ivory-50); }
@@ -2089,7 +2081,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   .navlinks { gap: 13px; }
   .navlinks a { font-size: 11px; }
   .nav-player-search { width: 154px; }
-  .overview-match-preview { padding: 16px; }
   .performance-trend-frame { height: 190px; }
 }
 
