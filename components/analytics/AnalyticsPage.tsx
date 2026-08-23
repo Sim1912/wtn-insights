@@ -7,7 +7,7 @@ import { currentStreakText } from "@/lib/analytics/format";
 import { filterAnalyticsMatches } from "@/lib/analytics/trends";
 import type { AnalyticsMatchType, AnalyticsPeriod, MetricResult, RecordResult, TrendPoint } from "@/lib/analytics/types";
 import { requestPlayer } from "@/lib/wtn/client";
-import { DEFAULT_TENNIS_ID, PLAYER_ID_STORAGE_KEY, normalizeTennisId } from "@/lib/wtn/player-id";
+import { DEFAULT_TENNIS_ID, normalizeTennisId } from "@/lib/wtn/player-id";
 import { averageOpponentWtn } from "@/lib/wtn/match-utils";
 import { renderScore } from "@/lib/wtn/score";
 import type { NormalizedMatch, WtnApiResponse } from "@/lib/wtn/types";
@@ -161,7 +161,6 @@ export function AnalyticsPage({ initialPlayerId = DEFAULT_TENNIS_ID }: { initial
     try {
       const response = await requestPlayer(normalizedId, signal);
       setData(response); setPlayerId(response.player.id); setStatus("live"); setMessage("");
-      window.localStorage.setItem(PLAYER_ID_STORAGE_KEY, response.player.id);
       replacePlayerQuery(response.player.id);
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") return;
@@ -172,15 +171,13 @@ export function AnalyticsPage({ initialPlayerId = DEFAULT_TENNIS_ID }: { initial
   useEffect(() => {
     const controller = new AbortController();
     const urlId = normalizeTennisId(new URLSearchParams(window.location.search).get("tennisId"));
-    // URL state always wins. Storage is intentionally read only in this effect.
-    const storedId = urlId ? null : normalizeTennisId(window.localStorage.getItem(PLAYER_ID_STORAGE_KEY));
-    const requestedId = urlId ?? storedId ?? initialPlayerId;
+    // A direct URL remains intentional; a fresh visit starts with the example player.
+    const requestedId = urlId ?? initialPlayerId;
     void (async () => {
       setPlayerId(requestedId);
       try {
         const response = await requestPlayer(requestedId, controller.signal);
         setData(response); setPlayerId(response.player.id); setStatus("live"); setMessage("");
-        window.localStorage.setItem(PLAYER_ID_STORAGE_KEY, response.player.id);
         replacePlayerQuery(response.player.id);
       } catch (error) {
         if (error instanceof Error && error.name === "AbortError") return;

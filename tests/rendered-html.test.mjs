@@ -51,11 +51,11 @@ async function getHtml(path) {
 }
 
 test("renders the Overview route through the Next production server", async () => {
-  const html = await getHtml("/?tennisId=MAU8054205");
+  const html = await getHtml("/");
   assert.match(html, /<title>WTN Insights — Ratings, matches and analytics<\/title>/i);
   assert.match(html, /Load another Tennis ID/i);
   assert.match(html, /Loading player ratings/i);
-  assert.match(html, /href="\/\?tennisId=MAU8054205"/i);
+  assert.match(html, /href="\/\?tennisId=DEMO"/i);
 });
 
 test("renders Matches and Analytics with their active destinations", async () => {
@@ -72,4 +72,8 @@ test("serves the Next.js WTN route handler", async () => {
   const response = await fetch(`${baseUrl}/api/wtn?tennisId=bad!`);
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { error: "Enter a valid Tennis ID." });
+
+  const example = await fetch(`${baseUrl}/api/wtn?tennisId=DEMO`);
+  assert.equal(example.status, 200);
+  assert.equal((await example.json()).meta.source, "example");
 });

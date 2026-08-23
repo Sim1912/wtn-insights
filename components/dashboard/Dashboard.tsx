@@ -7,7 +7,7 @@ import { MainNavigation, PlayerContext } from "@/components/shell/AppChrome";
 import { AnimatedNumber, ScrollReveal } from "@/components/ui/Motion";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { requestPlayer } from "@/lib/wtn/client";
-import { DEFAULT_TENNIS_ID, PLAYER_ID_STORAGE_KEY, normalizeTennisId } from "@/lib/wtn/player-id";
+import { DEFAULT_TENNIS_ID, normalizeTennisId } from "@/lib/wtn/player-id";
 import type { WtnApiResponse } from "@/lib/wtn/types";
 
 function RatingCard({ title, value, change, confidence, selected, onSelect }: { title: string; value: number | null; change: number | null; confidence: number | null; selected: boolean; onSelect: () => void }) {
@@ -56,7 +56,6 @@ export function Dashboard({ initialTab, initialPlayerId = DEFAULT_TENNIS_ID }: {
       dataRef.current = body;
       setData(body);
       setPlayerId(body.player.id);
-      window.localStorage.setItem(PLAYER_ID_STORAGE_KEY, body.player.id);
       replacePlayerQuery(body.player.id);
       setStatus("live");
       setMessage("");
@@ -70,9 +69,8 @@ export function Dashboard({ initialTab, initialPlayerId = DEFAULT_TENNIS_ID }: {
   useEffect(() => {
     const controller = new AbortController();
     const urlId = normalizeTennisId(new URLSearchParams(window.location.search).get("tennisId"));
-    // URL state always wins. Storage is intentionally read only in this effect.
-    const storedId = urlId ? null : normalizeTennisId(window.localStorage.getItem(PLAYER_ID_STORAGE_KEY));
-    const requestedId = urlId ?? storedId ?? initialPlayerId;
+    // A direct URL remains intentional; a fresh visit starts with the example player.
+    const requestedId = urlId ?? initialPlayerId;
     void (async () => {
       setPlayerId(requestedId);
       try {
@@ -80,7 +78,6 @@ export function Dashboard({ initialTab, initialPlayerId = DEFAULT_TENNIS_ID }: {
         dataRef.current = body;
         setData(body);
         setPlayerId(body.player.id);
-        window.localStorage.setItem(PLAYER_ID_STORAGE_KEY, body.player.id);
         replacePlayerQuery(body.player.id);
         setStatus("live");
         setMessage("");

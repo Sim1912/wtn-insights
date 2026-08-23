@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchWtnDashboard, WtnRequestError } from "@/lib/wtn/graphql";
 import { normalizeWtnResponse } from "@/lib/wtn/normalize-match";
+import { exampleWtnResponse, isExampleTennisId } from "@/lib/wtn/example-data";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,9 @@ export async function GET(request: NextRequest) {
   const tennisId = request.nextUrl.searchParams.get("tennisId")?.trim().toUpperCase();
   if (!tennisId || !/^[A-Z0-9-]{4,30}$/.test(tennisId)) {
     return NextResponse.json({ error: "Enter a valid Tennis ID." }, { status: 400 });
+  }
+  if (isExampleTennisId(tennisId)) {
+    return NextResponse.json(exampleWtnResponse, { headers: { "cache-control": "no-store" } });
   }
 
   try {

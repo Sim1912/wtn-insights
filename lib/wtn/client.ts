@@ -1,9 +1,11 @@
 import { fetchPublicWtnDashboard } from "./graphql";
 import { normalizeWtnResponse } from "./normalize-match";
+import { exampleWtnResponse, isExampleTennisId } from "./example-data";
 import type { WtnApiResponse } from "./types";
 
 export async function requestPlayer(tennisId: string, signal?: AbortSignal): Promise<WtnApiResponse> {
   const normalizedId = tennisId.trim().toUpperCase();
+  if (isExampleTennisId(normalizedId)) return exampleWtnResponse;
   const response = await fetch(`/api/wtn?tennisId=${encodeURIComponent(normalizedId)}`, { signal });
   const body = await response.json() as WtnApiResponse & { error?: string; diagnostic?: string };
   if (response.ok) return body;

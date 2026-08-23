@@ -87,7 +87,7 @@ export type WtnApiResponse = {
   ratings: RatingSummary;
   matches: NormalizedMatch[];
   meta: {
-    source: "wtn-live";
+    source: "wtn-live" | "example";
     fetchedAt: string;
     warnings: string[];
   };

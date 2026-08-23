@@ -40,6 +40,6 @@ The application works without required secrets. The optional server-only environ
 - `/` — Overview
 - `/matches` — Match history
 - `/analytics` — Analytics
-- `/api/wtn?tennisId=MAU8054205` — server-side WTN data route
+- `/api/wtn?tennisId=DEMO` — example-data response from the server-side WTN route
 
 The UI, court themes, player loading, analytics, charts and API normalization are unchanged by the deployment migration.

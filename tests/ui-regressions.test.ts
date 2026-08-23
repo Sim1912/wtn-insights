@@ -14,12 +14,12 @@ test("homepage WTN values retain their dedicated large-number treatment", () => 
   assert.match(styles, /\.rating-card-meta\s*\{/);
 });
 
-test("URL tennisId wins over storage after a hydration-safe initial render", () => {
+test("a direct URL tennisId wins while fresh visits retain the example player", () => {
   for (const source of [overview, analyticsPage]) {
     assert.match(source, /useState\(initialPlayerId\)/);
     assert.match(source, /const urlId = normalizeTennisId\(new URLSearchParams\(window\.location\.search\)\.get\("tennisId"\)\)/);
-    assert.match(source, /const storedId = urlId \? null : normalizeTennisId\(window\.localStorage\.getItem\(PLAYER_ID_STORAGE_KEY\)\)/);
-    assert.match(source, /const requestedId = urlId \?\? storedId \?\? initialPlayerId/);
+    assert.match(source, /const requestedId = urlId \?\? initialPlayerId/);
+    assert.doesNotMatch(source, /PLAYER_ID_STORAGE_KEY|localStorage\.getItem\(.*tennisId/);
   }
 });
 
