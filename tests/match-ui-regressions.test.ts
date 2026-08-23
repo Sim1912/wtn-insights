@@ -23,7 +23,9 @@ test("renders doubles WTN values line by line", () => {
 test("keeps narrow match filters contained and touch friendly", () => {
   assert.match(styles, /\.filter-primary \.format-segment\s*\{\s*grid-column:\s*1 \/ -1;\s*grid-row:\s*2;/);
   assert.match(styles, /\.opponent-search input, \.filter-secondary select, \.filter-secondary input\s*\{\s*height:\s*44px;\s*min-height:\s*44px;/);
-  assert.match(matchFilters, /className="filter-picker-menu" role="listbox"/);
+  assert.match(matchFilters, /className="filter-picker-menu" role="group"/);
+  assert.match(matchFilters, /aria-label=\{`\$\{label\}: \$\{selectedLabel\}`\}/);
+  assert.match(matchFilters, /aria-pressed=\{option\.value === value\}/);
   assert.match(styles, /\.filter-picker-menu\s*\{[^}]*max-height:[^}]*overflow-y:\s*auto/s);
   assert.match(styles, /\.filter-disclosure\[data-open="true"\] \.filter-secondary\s*\{\s*overflow:\s*visible;/);
   assert.match(styles, /\.performance-summary\s*\{\s*overflow:\s*visible;/);
@@ -36,7 +38,8 @@ test("exposes filter and chart groups to assistive technology", () => {
   assert.match(matchChart, /role="listitem"/);
 });
 
-test("uses structured description markup for the best rated win", () => {
+test("uses structured description markup for the strongest opponent beaten", () => {
   assert.match(matchSummary, /<dl className="strongest-win">/);
   assert.doesNotMatch(matchSummary, /<article className="strongest-win">/);
+  assert.match(matchSummary, /Strongest opponent beaten/);
 });

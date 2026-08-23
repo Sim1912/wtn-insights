@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DEFAULT_FILTERS, filterAndSortMatches, isCloseMatch, monthlyResults, opponentStrength, type MatchFilters } from "../lib/wtn/match-utils.ts";
+import { chronologicalMatchOrder, currentSeasonSnapshot, DEFAULT_FILTERS, filterAndSortMatches, isCloseMatch, monthlyResults, opponentStrength, type MatchFilters } from "../lib/wtn/match-utils.ts";
 import type { NormalizedMatch } from "../lib/wtn/types.ts";
 
 const makeMatch = (partial: Partial<NormalizedMatch> & Pick<NormalizedMatch, "id">): NormalizedMatch => ({
@@ -49,6 +49,20 @@ test("sorts newest, oldest, opponent WTN and closest", () => {
   assert.equal(run({ sort: "closest" })[0].id, "old-close");
 });
 
+test("uses completion time and a stable ID tie-breaker for match chronology", () => {
+  const sharedStart = "2026-04-01T09:00:00.000Z";
+  const tied = [
+    makeMatch({ id: "a-early", date: sharedStart, completedAt: "2026-04-01T10:00:00.000Z" }),
+    makeMatch({ id: "b-late", date: sharedStart, completedAt: "2026-04-01T11:00:00.000Z" }),
+    makeMatch({ id: "z-tied", date: sharedStart, completedAt: null }),
+  ];
+  assert.deepEqual([...tied].sort(chronologicalMatchOrder).map((match) => match.id), ["z-tied", "a-early", "b-late"]);
+  assert.deepEqual(filterAndSortMatches(tied, DEFAULT_FILTERS).map((match) => match.id), ["b-late", "a-early", "z-tied"]);
+
+  const exactTie = [makeMatch({ id: "a" }), makeMatch({ id: "z" })];
+  assert.deepEqual(filterAndSortMatches(exactTie, DEFAULT_FILTERS).map((match) => match.id), ["z", "a"]);
+});
+
 test("requires both doubles team ratings before assigning opponent strength", () => {
   const incompleteDoubles = makeMatch({ id: "incomplete-team", matchType: "doubles", partners: [], opponents: [
     { id: "o1", tennisId: null, name: "One", wtnBeforeMatch: 20 },
@@ -90,4 +104,29 @@ test("aggregates filtered official results by month", () => {
     { month: "2026-02", wins: 0, losses: 1, total: 1, winRate: 0 },
     { month: "2026-03", wins: 1, losses: 0, total: 1, winRate: 1 },
   ]);
+});
+
+test("builds the latest recorded season snapshot without inventing unavailable opponent data", () => {
+  const snapshot = currentSeasonSnapshot(matches);
+  assert.deepEqual(snapshot, {
+    year: "2026",
+    matchesPlayed: 2,
+    wins: 1,
+    losses: 1,
+    strongestOpponentBeaten: { name: "Alex Strong", wtn: 20 },
+  });
+
+  assert.deepEqual(currentSeasonSnapshot([]), {
+    year: null,
+    matchesPlayed: 0,
+    wins: 0,
+    losses: 0,
+    strongestOpponentBeaten: null,
+  });
+
+  const unknownOpponent = makeMatch({
+    id: "unknown-opponent",
+    opponents: [{ id: "unknown", tennisId: null, name: "UNKNOWN UNKNOWN", wtnBeforeMatch: 18 }],
+  });
+  assert.equal(currentSeasonSnapshot([unknownOpponent]).strongestOpponentBeaten?.name, "Opponent unavailable");
 });

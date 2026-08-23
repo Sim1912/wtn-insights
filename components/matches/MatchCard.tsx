@@ -6,7 +6,7 @@ import type { MatchParticipant, NormalizedMatch, NormalizedSet, PlayerProfile } 
 const dateFormatter = new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric" });
 const dateTimeFormatter = new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
 const statusLabel: Record<NormalizedMatch["status"], string> = {
-  completed: "Completed", retired: "Retirement", walkover: "Walkover", defaulted: "Default",
+  completed: "Completed", retired: "Retirement", walkover: "Walkover", defaulted: "Defaulted",
   abandoned: "Abandoned", unfinished: "Unfinished", unknown: "Status unavailable",
 };
 
@@ -82,7 +82,7 @@ export function MatchCard({
   const contextBits = [match.matchType === "unknown" ? null : match.matchType, match.surface, match.environment].filter(Boolean);
   const abnormalStatus = match.status !== "completed" && match.status !== "unknown";
   const fallbackScore = renderScore(match.sets, match.playerSide, match.status, match.scoreText);
-  const resultLabel = match.result === "win" ? "Win" : match.result === "loss" ? "Loss" : "Result pending";
+  const resultLabel = match.result === "win" ? "Win" : match.result === "loss" ? "Loss" : "Result unavailable";
   const resultInsight = upset ? "Upset win" : close ? "Close match" : null;
 
   return <article className={`match-card ${expanded ? "expanded" : ""}`} data-result={match.result} data-insight={upset ? "upset" : close ? "close" : undefined}>
@@ -145,7 +145,7 @@ export function MatchCard({
           <ParticipantIds label="Opponent IDs" participants={match.opponents} />
           <div className="match-id-detail"><dt>Match ID</dt><dd><code>{match.providerMatchId || match.id}</code></dd></div>
         </dl>
-        {(!match.sets.length || !match.opponents.length) && <p className="data-note">Some optional match details were not supplied by WTN.</p>}
+        {(!match.sets.length || !match.opponents.length || (match.matchType === "doubles" && (match.partners.length !== 1 || match.opponents.length !== 2))) && <p className="data-note">Some score or participant details were not supplied by WTN.</p>}
       </div>
     </div>
   </article>;

@@ -68,6 +68,15 @@ test("counts sets and games without treating match-tiebreak points as games", ()
   assert.equal(report.games.denominator, 20);
 });
 
+test("does not count a match-tiebreak-only result as normal-set or game evidence", () => {
+  const onlyMatchTiebreak = match("only-match-tb", "win", [set(10, 8, { matchTiebreak: true })]);
+  const report = calculateAnalytics([onlyMatchTiebreak]);
+  assert.equal(report.sets.sampleSize, 0);
+  assert.equal(report.games.sampleSize, 0);
+  assert.equal(report.averageSetsPlayed.value, null);
+  assert.deepEqual(report.matchTiebreaks.eligibleMatchIds, [onlyMatchTiebreak.id]);
+});
+
 test("classifies first-set comebacks and lead protection with zero-opportunity safety", () => {
   const report = calculateAnalytics([comeback, straightLoss, lostLead, straightWin]);
   assert.deepEqual([report.comebackFirstSet.wins, report.comebackFirstSet.losses], [1, 1]);
@@ -175,13 +184,26 @@ test("uses completion time and a stable ID tie-breaker for form and streak order
   assert.deepEqual(exactTie.currentStreak, { result: "loss", count: 1 });
 });
 
-test("analytics observations retain sample sizes and evidence match IDs", () => {
-  const report = calculateAnalytics([comeback, straightLoss, lostLead, fiveSetComeback]);
+test("analytics observations use meaningful rates and retain evidence match IDs", () => {
+  const openingSetLosses = Array.from({ length: 5 }, (_, index) => match(`opening-loss-${index}`, "loss", [set(3, 6), set(4, 6)]));
+  const overallWins = Array.from({ length: 5 }, (_, index) => match(`overall-win-${index}`, "win", [set(6, 3), set(6, 4)]));
+  const report = calculateAnalytics([...openingSetLosses, ...overallWins]);
   const openingSet = report.insights.find((insight) => insight.label === "Opening-set response");
   assert.ok(openingSet);
-  assert.equal(openingSet.sampleSize, 3);
+  assert.equal(openingSet.text, "Won 0% of matches after dropping the opening set — 50 percentage points below overall.");
+  assert.equal(openingSet.sampleSize, 5);
   assert.deepEqual(openingSet.matchIds, report.comebackFirstSet.eligibleMatchIds);
   assert.ok(openingSet.evidenceReason.length > 0);
+});
+
+test("analytics observations require five eligible matches and a meaningful overall difference", () => {
+  const fourOpeningSetLosses = Array.from({ length: 4 }, (_, index) => match(`small-opening-loss-${index}`, "loss", [set(3, 6), set(4, 6)]));
+  const fourOverallWins = Array.from({ length: 4 }, (_, index) => match(`small-overall-win-${index}`, "win", [set(6, 3), set(6, 4)]));
+  assert.equal(calculateAnalytics([...fourOpeningSetLosses, ...fourOverallWins]).insights.some((insight) => insight.label === "Opening-set response"), false);
+
+  const evenOpeningSetLosses = Array.from({ length: 5 }, (_, index) => match(`even-opening-loss-${index}`, "loss", [set(3, 6), set(4, 6)]));
+  const evenOpeningSetWins = Array.from({ length: 5 }, (_, index) => match(`even-opening-win-${index}`, "win", [set(3, 6), set(6, 3), set(6, 4)]));
+  assert.equal(calculateAnalytics([...evenOpeningSetLosses, ...evenOpeningSetWins]).insights.some((insight) => insight.label === "Opening-set response"), false);
 });
 
 test("fixtures cover all required normalized match shapes", () => {

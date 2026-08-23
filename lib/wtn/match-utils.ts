@@ -16,6 +16,13 @@ export const DEFAULT_FILTERS: MatchFilters = {
   opponent: "", strength: "all", sort: "newest",
 };
 
+export function chronologicalMatchOrder(a: NormalizedMatch, b: NormalizedMatch): number {
+  const completed = (a.completedAt ?? a.date ?? "").localeCompare(b.completedAt ?? b.date ?? "");
+  if (completed) return completed;
+  const started = (a.date ?? "").localeCompare(b.date ?? "");
+  return started || a.id.localeCompare(b.id);
+}
+
 export function averageOpponentWtn(match: NormalizedMatch): number | null {
   const values = match.opponents.map((opponent) => opponent.wtnBeforeMatch).filter((value): value is number => value != null);
   const expectedPlayers = match.matchType === "doubles" ? 2 : match.matchType === "singles" ? 1 : match.opponents.length;
@@ -73,6 +80,47 @@ export function monthlyResults(matches: NormalizedMatch[]): MonthlyResult[] {
   });
 }
 
+type StrongestOpponentWin = { name: string; wtn: number } | null;
+
+export type SeasonSnapshot = {
+  year: string | null;
+  matchesPlayed: number;
+  wins: number;
+  losses: number;
+  strongestOpponentBeaten: StrongestOpponentWin;
+};
+
+function recordedYear(match: NormalizedMatch): string | null {
+  const date = match.completedAt ?? match.date;
+  return date && /^\d{4}-/.test(date) ? date.slice(0, 4) : null;
+}
+
+function knownOpponentName(match: NormalizedMatch): string {
+  return match.opponents
+    .map((opponent) => opponent.name.trim())
+    .filter((name) => name && !/^unknown(?: unknown)?$/i.test(name))
+    .join(" / ") || "Opponent unavailable";
+}
+
+export function currentSeasonSnapshot(matches: NormalizedMatch[]): SeasonSnapshot {
+  const latest = [...matches]
+    .filter((match) => recordedYear(match) != null)
+    .sort((a, b) => chronologicalMatchOrder(b, a))[0];
+  const year = latest ? recordedYear(latest) : null;
+  const inSeason = year ? matches.filter((match) => recordedYear(match) === year) : [];
+  const decided = inSeason.filter((match) => match.status === "completed" && match.result !== "unknown" && match.winningSide != null);
+  const wins = decided.filter((match) => match.result === "win").length;
+  const losses = decided.filter((match) => match.result === "loss").length;
+  const strongestMatch = decided
+    .filter((match) => match.result === "win" && averageOpponentWtn(match) != null)
+    .sort((a, b) => (averageOpponentWtn(a) ?? Infinity) - (averageOpponentWtn(b) ?? Infinity))[0];
+  const strongestOpponentBeaten = strongestMatch
+    ? { name: knownOpponentName(strongestMatch), wtn: averageOpponentWtn(strongestMatch)! }
+    : null;
+
+  return { year, matchesPlayed: inSeason.length, wins, losses, strongestOpponentBeaten };
+}
+
 export function filterAndSortMatches(matches: NormalizedMatch[], filters: MatchFilters): NormalizedMatch[] {
   const opponentNeedle = filters.opponent.trim().toLocaleLowerCase();
   const filtered = matches.filter((match) => {
@@ -88,9 +136,9 @@ export function filterAndSortMatches(matches: NormalizedMatch[], filters: MatchF
   });
 
   return [...filtered].sort((a, b) => {
-    if (filters.sort === "oldest") return (a.date ?? "9999").localeCompare(b.date ?? "9999");
+    if (filters.sort === "oldest") return chronologicalMatchOrder(a, b);
     if (filters.sort === "opponent-wtn") return (averageOpponentWtn(a) ?? Infinity) - (averageOpponentWtn(b) ?? Infinity);
-    if (filters.sort === "closest") return closeness(a) - closeness(b) || (b.date ?? "").localeCompare(a.date ?? "");
-    return (b.date ?? "").localeCompare(a.date ?? "");
+    if (filters.sort === "closest") return closeness(a) - closeness(b) || chronologicalMatchOrder(b, a);
+    return chronologicalMatchOrder(b, a);
   });
 }

@@ -1,6 +1,20 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import "./globals.css";
+
+const THEME_STORAGE_KEY = "wtn-insights-court-theme";
+
+const themeBootstrap = `(() => {
+  try {
+    const storedTheme = window.localStorage.getItem("${THEME_STORAGE_KEY}");
+    const serverTheme = document.documentElement.dataset.theme === "clay" ? "clay" : "grass";
+    const selectedTheme = storedTheme === "clay" || storedTheme === "grass" ? storedTheme : serverTheme;
+    document.documentElement.dataset.theme = selectedTheme;
+    document.cookie = "${THEME_STORAGE_KEY}=" + selectedTheme + "; Path=/; Max-Age=31536000; SameSite=Lax";
+  } catch {
+    document.documentElement.dataset.theme = document.documentElement.dataset.theme === "clay" ? "clay" : "grass";
+  }
+})();`;
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -16,6 +30,13 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}</body></html>;
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const cookieStore = await cookies();
+  const savedTheme = cookieStore.get(THEME_STORAGE_KEY)?.value;
+  const initialTheme = savedTheme === "clay" ? "clay" : "grass";
+
+  return <html lang="en" data-theme={initialTheme} suppressHydrationWarning>
+    <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
+    <body><div id="court-theme-sweep" className="court-theme-sweep" aria-hidden="true" />{children}</body>
+  </html>;
 } 

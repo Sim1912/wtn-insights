@@ -32,8 +32,8 @@ export function MatchResultsChart({ matches }: { matches: NormalizedMatch[] }) {
 
   return <details className="match-trends">
     <summary className="match-trends-toggle">
-      <span><strong>Trends</strong><small>{range}</small></span>
-      <span className="match-trends-action">Wins and losses <b aria-hidden="true">▾</b></span>
+      <span><strong>Results over time</strong><small>{range}</small></span>
+      <span className="match-trends-action">Recorded wins and losses <b aria-hidden="true">▾</b></span>
     </summary>
     <section className="results-chart-panel" aria-label={`Filtered wins and losses from ${range}`}>
       <header>
@@ -51,7 +51,7 @@ export function MatchResultsChart({ matches }: { matches: NormalizedMatch[] }) {
             <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-secondary)", fontSize: 10 }} />
             <Tooltip content={(props) => <ResultsTooltip active={props.active} payload={props.payload as unknown as ReadonlyArray<{ payload?: MonthlyResult }>} />} isAnimationActive={!reducedMotion} allowEscapeViewBox={{ x: false, y: false }} cursor={{ fill: "var(--color-surface-subtle)" }} />
             <Bar dataKey="wins" name="Wins" fill="var(--color-chart-primary)" radius={[3, 3, 0, 0]} maxBarSize={13} isAnimationActive={!reducedMotion} animationDuration={520} />
-            <Bar dataKey="losses" name="Losses" fill="var(--color-chart-neutral)" radius={[3, 3, 0, 0]} maxBarSize={13} isAnimationActive={!reducedMotion} animationDuration={520} />
+            <Bar dataKey="losses" name="Losses" fill="var(--color-chart-loss)" radius={[3, 3, 0, 0]} maxBarSize={13} isAnimationActive={!reducedMotion} animationDuration={520} />
           </BarChart>
         </ResponsiveContainer></ChartEntrance>
       </div>
