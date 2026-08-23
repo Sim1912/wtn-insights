@@ -35,7 +35,7 @@ export function monthlyTrends(matches: NormalizedMatch[]): TrendPoint[] {
     const row = rows.get(month) ?? { wins: 0, losses: 0, matches: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0, rolling5WinRate: null, rolling10WinRate: null, rolling5Wins: 0, rolling5Sample: 0, rolling10Wins: 0, rolling10Sample: 0, opponentWtnTotal: 0, opponentWtnSample: 0 };
     row.matches += 1;
     if (match.result === "win") row.wins += 1; else row.losses += 1;
-    recentResults.push(match.result);
+    recentResults.push(match.result === "win" ? "win" : "loss");
     const lastFive = recentResults.slice(-5); const lastTen = recentResults.slice(-10);
     row.rolling5Wins = lastFive.filter((result) => result === "win").length; row.rolling5Sample = lastFive.length; row.rolling5WinRate = row.rolling5Wins / row.rolling5Sample;
     row.rolling10Wins = lastTen.filter((result) => result === "win").length; row.rolling10Sample = lastTen.length; row.rolling10WinRate = row.rolling10Wins / row.rolling10Sample;

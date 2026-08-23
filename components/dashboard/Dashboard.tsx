@@ -108,7 +108,7 @@ export function Dashboard({ initialTab, initialPlayerId = DEFAULT_TENNIS_ID }: {
 
     {!data && status === "error" ? <section className="load-error shell"><strong>Player data could not be loaded.</strong><p>{message}</p><button type="button" onClick={() => void loadPlayer(playerId)}>Try again</button></section>
       : initialTab === "overview" ? <div className="shell content overview-content">
-        {data && ratings ? <>
+        {data && ratings && player ? <>
           <ScrollReveal><section className="rating-grid" aria-label="Current ratings">
               <RatingCard title="Singles WTN" value={ratings.singles} change={ratings.singlesChange} confidence={ratings.singlesConfidence} selected={series === "singles"} onSelect={() => setSeries("singles")} />
               <RatingCard title="Doubles WTN" value={ratings.doubles} change={ratings.doublesChange} confidence={ratings.doublesConfidence} selected={series === "doubles"} onSelect={() => setSeries("doubles")} />

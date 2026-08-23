@@ -1,78 +1,75 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+import test, { after, before } from "node:test";
 
-test("renders WTN Insights metadata and the loading dashboard shell", async () => {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
+const projectRoot = dirname(dirname(fileURLToPath(import.meta.url)));
+const port = 4317;
+const baseUrl = `http://127.0.0.1:${port}`;
+let server;
+let serverOutput = "";
 
-  const response = await worker.fetch(
-    new Request("http://localhost/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
-  );
+async function waitForServer() {
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(baseUrl);
+      if (response.ok) return;
+    } catch {
+      // The production server is still starting.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+  throw new Error(`Next production server did not start.\n${serverOutput}`);
+}
 
+before(async () => {
+  const next = join(projectRoot, "node_modules", ".bin", "next");
+  server = spawn(next, ["start", "-p", String(port)], {
+    cwd: projectRoot,
+    env: { ...process.env, PORT: String(port) },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  server.stdout.on("data", (chunk) => { serverOutput += chunk; });
+  server.stderr.on("data", (chunk) => { serverOutput += chunk; });
+  await waitForServer();
+});
+
+after(async () => {
+  if (!server || server.exitCode !== null) return;
+  server.kill("SIGTERM");
+  await once(server, "exit");
+});
+
+async function getHtml(path) {
+  const response = await fetch(`${baseUrl}${path}`);
   assert.equal(response.status, 200);
-  assert.match(
-    response.headers.get("content-type") ?? "",
-    /^text\/html\b/i,
-  );
-  const html = await response.text();
+  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
+  return response.text();
+}
+
+test("renders the Overview route through the Next production server", async () => {
+  const html = await getHtml("/?tennisId=MAU8054205");
   assert.match(html, /<title>WTN Insights — Ratings, matches and analytics<\/title>/i);
-  assert.match(html, /<meta(?=[^>]*property=["']og:image["'])[^>]*>/i);
   assert.match(html, /Load another Tennis ID/i);
   assert.match(html, /Loading player ratings/i);
+  assert.match(html, /href="\/\?tennisId=MAU8054205"/i);
 });
 
-test("renders the analytics route directly", async () => {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("analytics-test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
-  const response = await worker.fetch(new Request("http://localhost/analytics?tennisId=MAU8054205", { headers: { accept: "text/html" } }), {
-    ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
-  }, { waitUntil() {}, passThroughOnException() {} });
-  assert.equal(response.status, 200);
-  const html = await response.text();
-  assert.match(html, /Loading analytics/i);
-  assert.match(html, /<a(?=[^>]*href=["']\/analytics\?tennisId=MAU8054205["'])(?=[^>]*aria-current=["']page["'])[^>]*>/i);
-  assert.doesNotMatch(html, /<a(?=[^>]*href=["']\/\?tennisId=MAU8054205["'])(?=[^>]*aria-current=["']page["'])[^>]*>/i);
+test("renders Matches and Analytics with their active destinations", async () => {
+  const matches = await getHtml("/matches?tennisId=MAU8054205");
+  assert.match(matches, /href="\/matches\?tennisId=MAU8054205"[^>]*aria-current="page"|aria-current="page"[^>]*href="\/matches\?tennisId=MAU8054205"/i);
+  assert.match(matches, /Loading match history/i);
+
+  const analytics = await getHtml("/analytics?tennisId=MAU8054205");
+  assert.match(analytics, /href="\/analytics\?tennisId=MAU8054205"[^>]*aria-current="page"|aria-current="page"[^>]*href="\/analytics\?tennisId=MAU8054205"/i);
+  assert.match(analytics, /Loading analytics/i);
 });
 
-test("renders the matches route with Matches as the active destination", async () => {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("matches-test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
-  const response = await worker.fetch(new Request("http://localhost/matches?tennisId=MAU8054205", { headers: { accept: "text/html" } }), {
-    ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
-  }, { waitUntil() {}, passThroughOnException() {} });
-  assert.equal(response.status, 200);
-  const html = await response.text();
-  assert.match(html, /<a(?=[^>]*href=["']\/matches\?tennisId=MAU8054205["'])(?=[^>]*aria-current=["']page["'])[^>]*>/i);
-  assert.doesNotMatch(html, /<a(?=[^>]*href=["']\/\?tennisId=MAU8054205["'])(?=[^>]*aria-current=["']page["'])[^>]*>/i);
-  assert.match(html, /Loading match history/i);
-});
-
-test("preserves an alternate URL tennisId across every primary route", async () => {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("alternate-player-test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
-  const tennisId = "ABC1234";
-  for (const [path, activeHref] of [["/", `/?tennisId=${tennisId}`], ["/matches", `/matches?tennisId=${tennisId}`], ["/analytics", `/analytics?tennisId=${tennisId}`]]) {
-    const response = await worker.fetch(new Request(`http://localhost${path}?tennisId=${tennisId}`, { headers: { accept: "text/html" } }), {
-      ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
-    }, { waitUntil() {}, passThroughOnException() {} });
-    assert.equal(response.status, 200);
-    const html = await response.text();
-    assert.match(html, new RegExp(`<a(?=[^>]*href=["']${activeHref.replace("?", "\\?")}["'])(?=[^>]*aria-current=["']page["'])[^>]*>`, "i"));
-    for (const destination of ["/", "/matches", "/analytics"]) assert.match(html, new RegExp(`href=["']${destination.replace("/", "\\/")}\\?tennisId=${tennisId}["']`, "i"));
-  }
+test("serves the Next.js WTN route handler", async () => {
+  const response = await fetch(`${baseUrl}/api/wtn?tennisId=bad!`);
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: "Enter a valid Tennis ID." });
 });

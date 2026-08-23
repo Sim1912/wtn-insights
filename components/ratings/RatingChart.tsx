@@ -22,7 +22,7 @@ function formatDirectionalChange(value: number) {
   return `${formatChange(value)} · ${value < 0 ? "stronger" : "weaker"}`;
 }
 
-function RatingTooltip({ active, payload, series }: { active?: boolean; payload?: TooltipEntry[]; series: Series }) {
+function RatingTooltip({ active, payload, series }: { active?: boolean; payload?: ReadonlyArray<TooltipEntry>; series: Series }) {
   const point = payload?.find((entry) => entry.payload && !entry.payload.isGap)?.payload;
   if (!active || !point || point.value == null) return null;
   const rows = [
@@ -90,7 +90,7 @@ export function RatingChart({
           <CartesianGrid vertical={false} stroke="var(--rating-chart-grid-on-court)" strokeDasharray="3 7" />
           <XAxis dataKey="timestamp" type="number" domain={["dataMin", "dataMax"]} scale="time" tickFormatter={(value) => axisDateFormatter.format(new Date(value))} tickLine={false} axisLine={false} minTickGap={52} tick={{ fill: "var(--rating-chart-axis-on-court)", fontSize: 11 }} dy={9} />
           <YAxis reversed domain={domain} width={46} tickCount={5} tickFormatter={(value: number) => value.toFixed(1)} tickLine={false} axisLine={false} tick={{ fill: "var(--rating-chart-axis-on-court)", fontSize: 11 }} />
-          <Tooltip content={(props) => <RatingTooltip active={props.active} payload={props.payload as TooltipEntry[]} series={series} />} isAnimationActive={!reducedMotion} allowEscapeViewBox={{ x: false, y: false }} reverseDirection={{ x: true, y: false }} cursor={{ stroke: "var(--chart-cursor-on-court)", strokeDasharray: "3 4" }} />
+          <Tooltip content={(props) => <RatingTooltip active={props.active} payload={props.payload as ReadonlyArray<TooltipEntry>} series={series} />} isAnimationActive={!reducedMotion} allowEscapeViewBox={{ x: false, y: false }} reverseDirection={{ x: true, y: false }} cursor={{ stroke: "var(--chart-cursor-on-court)", strokeDasharray: "3 4" }} />
           <Line name={`${series} WTN`} dataKey="value" type="linear" stroke={color} strokeWidth={3} connectNulls isAnimationActive={!reducedMotion} animationDuration={680} dot={(props) => <RatingDot {...props} latestDate={latestDate} color={color} />} activeDot={{ r: 6, stroke: "var(--chart-active-dot-ring)", strokeWidth: 2, fill: color }} />
         </LineChart>
       </ResponsiveContainer></ChartEntrance> : <div className="chart-empty">No rating updates in this period.</div>}
