@@ -11,6 +11,7 @@ type TooltipEntry = { payload?: ChartRatingPoint };
 
 const dateFormatter = new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric" });
 const axisDateFormatter = new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short" });
+const axisDateYearFormatter = new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "2-digit" });
 const periodLabels: Array<[RatingPeriod, string]> = [["1m", "1M"], ["3m", "3M"], ["6m", "6M"], ["1y", "1Y"], ["all", "All"]];
 
 function formatChange(value: number) {
@@ -28,7 +29,7 @@ function RatingTooltip({ active, payload, series }: { active?: boolean; payload?
   const rows = [
     ["Change", point.change == null ? null : formatDirectionalChange(point.change)],
     ["Previous", point.previous == null ? null : point.previous.toFixed(2)],
-    ["Confidence", point.confidence == null ? null : `${point.confidence}%`],
+    ["WTN confidence", point.confidence == null ? null : `${point.confidence}%`],
     ["Game zone", point.gameZoneLower == null || point.gameZoneUpper == null ? null : [point.gameZoneLower, point.gameZoneUpper].sort((a, b) => a - b).map((value) => value.toFixed(2)).join("–")],
     ["Connected matches", point.connectedMatches == null ? null : String(point.connectedMatches)],
   ].filter((row): row is [string, string] => row[1] != null);
@@ -70,12 +71,18 @@ export function RatingChart({
   const trend = visiblePoints.length > 1 ? visiblePoints.at(-1)!.value - visiblePoints[0].value : null;
   const color = "var(--chart-line-on-court)";
   const latestDate = visiblePoints.at(-1)?.date ?? "";
+  const selectedPeriodLabel = periodLabels.find(([value]) => value === period)?.[1] ?? period.toUpperCase();
+  const spansYears = new Set(visiblePoints.map((point) => point.date.slice(0, 4))).size > 1;
+  const visibleRange = visiblePoints.length
+    ? `${dateFormatter.format(new Date(visiblePoints[0].date))} to ${dateFormatter.format(new Date(visiblePoints.at(-1)!.date))}`
+    : "no available rating updates";
 
-  return <section className="rating-panel" id="rating-history-chart" aria-label="Interactive rating history">
+  return <section className="rating-panel" id="rating-history-chart" aria-labelledby="rating-history-title" aria-describedby="rating-history-summary">
     <header className="rating-chart-header">
-      <div><h2>WTN history</h2><p>Lower WTN is stronger · latest update highlighted</p></div>
-      <div className="chart-trend"><span>Period change</span><strong className={trend == null ? "" : trend <= 0 ? "positive" : "negative"}>{trend == null ? "—" : formatDirectionalChange(trend)}</strong></div>
+      <div><h2 id="rating-history-title">WTN history</h2><p>Lower WTN is stronger · latest update highlighted</p></div>
+      <div className="chart-trend"><span>Selected {selectedPeriodLabel} period</span><strong className={trend == null ? "" : trend <= 0 ? "positive" : "negative"}>{trend == null ? "—" : formatDirectionalChange(trend)}</strong></div>
     </header>
+    <p className="sr-only" id="rating-history-summary">{`${series === "singles" ? "Singles" : "Doubles"} WTN history for ${visibleRange}. ${trend == null ? "Selected-period change unavailable." : `Selected-period change ${formatDirectionalChange(trend)}.`} Lower WTN is stronger.`}</p>
     <div className="chart-controls">
       <div className="series-switch" role="group" aria-label="Rating type">
         {(["singles", "doubles"] as const).map((value) => <button type="button" key={value} aria-pressed={series === value} aria-controls="rating-history-chart" className={series === value ? "active" : ""} onClick={() => onSeriesChange(value)}>{value === "singles" ? "Singles" : "Doubles"}</button>)}
@@ -88,12 +95,12 @@ export function RatingChart({
       {visiblePoints.length ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
         <LineChart data={chartPoints} accessibilityLayer margin={{ top: 20, right: 18, bottom: 3, left: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--rating-chart-grid-on-court)" strokeDasharray="3 7" />
-          <XAxis dataKey="timestamp" type="number" domain={["dataMin", "dataMax"]} scale="time" tickFormatter={(value) => axisDateFormatter.format(new Date(value))} tickLine={false} axisLine={false} minTickGap={52} tick={{ fill: "var(--rating-chart-axis-on-court)", fontSize: 11 }} dy={9} />
+          <XAxis dataKey="timestamp" type="number" domain={["dataMin", "dataMax"]} scale="time" tickFormatter={(value) => (period === "all" || spansYears ? axisDateYearFormatter : axisDateFormatter).format(new Date(value))} tickLine={false} axisLine={false} minTickGap={period === "all" || spansYears ? 68 : 52} tick={{ fill: "var(--rating-chart-axis-on-court)", fontSize: 11 }} dy={9} />
           <YAxis reversed domain={domain} width={46} tickCount={5} tickFormatter={(value: number) => value.toFixed(1)} tickLine={false} axisLine={false} tick={{ fill: "var(--rating-chart-axis-on-court)", fontSize: 11 }} />
           <Tooltip content={(props) => <RatingTooltip active={props.active} payload={props.payload as ReadonlyArray<TooltipEntry>} series={series} />} isAnimationActive={!reducedMotion} allowEscapeViewBox={{ x: false, y: false }} reverseDirection={{ x: true, y: false }} cursor={{ stroke: "var(--chart-cursor-on-court)", strokeDasharray: "3 4" }} />
           <Line name={`${series} WTN`} dataKey="value" type="linear" stroke={color} strokeWidth={3} connectNulls isAnimationActive={false} dot={(props) => <RatingDot {...props} latestDate={latestDate} color={color} />} activeDot={{ r: 6, stroke: "var(--chart-active-dot-ring)", strokeWidth: 2, fill: color }} />
         </LineChart>
-      </ResponsiveContainer> : <div className="chart-empty">No rating updates in this period.</div>}
+      </ResponsiveContainer> : <div className="chart-empty">{seriesPoints.length ? "No rating updates in the selected period." : `${series === "singles" ? "Singles" : "Doubles"} rating history is unavailable.`}</div>}
     </div>
   </section>;
 }

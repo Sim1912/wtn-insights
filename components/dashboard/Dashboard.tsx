@@ -12,19 +12,19 @@ import type { WtnApiResponse } from "@/lib/wtn/types";
 
 function RatingCard({ title, value, change, confidence, selected, onSelect }: { title: string; value: number | null; change: number | null; confidence: number | null; selected: boolean; onSelect: () => void }) {
   const changeText = change == null ? null : change < 0 ? `${Math.abs(change).toFixed(2)} stronger` : change > 0 ? `${change.toFixed(2)} weaker` : "unchanged";
-  const accessibleLabel = `${title}: ${value == null ? "unavailable" : value.toFixed(2)}.${changeText ? ` Latest change ${changeText}.` : ""}${confidence == null ? "" : ` ${confidence}% confidence.`} Show ${title} history.`;
+  const accessibleLabel = `${title}: ${value == null ? "unavailable" : value.toFixed(2)}. Since the previous update: ${changeText ?? "unavailable"}.${confidence == null ? "" : ` WTN confidence: ${confidence}%, supplied by the underlying WTN data.`} Show ${title} history.`;
   return <button type="button" className={`rating-card ${selected ? "selected" : ""}`} aria-label={accessibleLabel} aria-pressed={selected} aria-controls="rating-history-chart" onClick={onSelect}>
     <span className="rating-card-title">{title}</span>
     <strong className="rating-number">{value == null ? "—" : <AnimatedNumber value={value} decimals={2} />}</strong>
     <span className="rating-card-meta">
-      {change != null && <b className={change <= 0 ? "positive" : "negative"}>{change > 0 ? "↑" : change < 0 ? "↓" : "→"} {changeText}</b>}
-      {confidence != null && <small>{confidence}% confidence</small>}
+      <b className={change == null ? "neutral" : change <= 0 ? "positive" : "negative"}>Since previous update: {change == null ? "unavailable" : <>{change > 0 ? "↑" : change < 0 ? "↓" : "→"} {changeText}</>}</b>
+      {confidence != null && <small title="Confidence supplied by the underlying World Tennis Number data.">WTN confidence: {confidence}% <span aria-hidden="true">ⓘ</span></small>}
     </span>
   </button>;
 }
 
 function OverviewSkeleton() {
-  return <div className="overview-skeleton" role="status" aria-label="Loading player ratings">
+  return <div className="overview-skeleton" aria-hidden="true">
     <div className="rating-skeleton"><i /><span /><span /></div><div className="rating-skeleton"><i /><span /><span /></div>
     <div className="chart-skeleton"><i /><span /></div>
   </div>;
@@ -47,7 +47,13 @@ export function Dashboard({ initialTab, initialPlayerId = DEFAULT_TENNIS_ID }: {
   const [series, setSeries] = useState<"singles" | "doubles">("singles");
 
   const loadPlayer = useCallback(async (tennisId: string) => {
-    const normalizedId = normalizeTennisId(tennisId) ?? DEFAULT_TENNIS_ID;
+    const normalizedId = normalizeTennisId(tennisId);
+    if (!normalizedId) {
+      setStatus("error");
+      setMessage("Enter a valid Tennis ID.");
+      setDiagnostic(null);
+      return;
+    }
     setStatus("loading");
     setMessage(dataRef.current ? "Refreshing player…" : "Loading player…");
     setDiagnostic(null);
@@ -100,7 +106,7 @@ export function Dashboard({ initialTab, initialPlayerId = DEFAULT_TENNIS_ID }: {
     <MainNavigation current={initialTab} playerId={playerId} loading={status === "loading"} onPlayerIdChange={setPlayerId} onSubmit={submit} />
     <PlayerContext player={player} fallbackId={playerId} updatedAt={ratings?.updatedAt} />
 
-    {status !== "live" && <div id="load-status" className={`status-banner ${status} shell`} role="status"><span />{message}{status === "error" && data && <small>Previous data remains visible.</small>}</div>}
+    {(status === "loading" || (status === "error" && data)) && <div id="load-status" className={`status-banner ${status} shell`} role="status"><span />{message}{status === "error" && data && <small>Previous data remains visible.</small>}</div>}
     {process.env.NODE_ENV === "development" && diagnostic && <details className="diagnostic shell"><summary>Development API diagnostic</summary><code>{diagnostic}</code></details>}
 
     {!data && status === "error" ? <section className="load-error shell"><strong>Player data could not be loaded.</strong><p>{message}</p><button type="button" onClick={() => void loadPlayer(playerId)}>Try again</button></section>

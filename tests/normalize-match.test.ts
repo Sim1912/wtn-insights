@@ -120,3 +120,67 @@ test("sorts and preserves independent rating histories without fabricated values
   assert.equal(response.ratings.history.doubles[0].gameZoneLower, 29.74);
   assert.equal(response.matches.length, 1);
 });
+
+test("uses only the exact Singles or Doubles WTN recorded for a match", () => {
+  const singlesWithOnlyDoublesRatings: RawMatch = {
+    ...doublesMatch,
+    id: "singles-with-wrong-rating-type",
+    type: "SINGLES",
+    sides: [
+      { sideNumber: "SIDE1", players: [{ person: person("opponent-one", "OPP1", "Ana", "One") }] },
+      { sideNumber: "SIDE2", players: [{ person: person("player-person", "MAU8054205", "Simon", "Manuel") }] },
+    ],
+    worldTennisNumbers: [
+      { personId: "player-person", type: "DOUBLE", tennisNumber: 24 },
+      { personId: "opponent-one", type: "DOUBLE", tennisNumber: 22 },
+    ],
+  };
+  const normalized = normalizeMatch(singlesWithOnlyDoublesRatings, player, []);
+  assert.ok(normalized);
+  assert.equal(normalized.playerWtnBeforeMatch, null);
+  assert.equal(normalized.opponents[0].wtnBeforeMatch, null);
+});
+
+test("sanitizes participant names and dates and preserves incomplete doubles teams explicitly", () => {
+  const incompleteTeam = normalizeMatch({
+    ...doublesMatch,
+    id: "incomplete-team-data",
+    start: "not-a-date",
+    end: "2026-02-30T10:00:00.000Z",
+    sides: [
+      { sideNumber: "SIDE1", players: [{ person: person("opponent-one", "OPP1", " UNKNOWN ", " UNKNOWN ") }] },
+      { sideNumber: "SIDE2", players: [{ person: person("player-person", "MAU8054205", "  Simon  ", "  Manuel ") }] },
+    ],
+  }, player, []);
+  assert.ok(incompleteTeam);
+  assert.equal(incompleteTeam.date, null);
+  assert.equal(incompleteTeam.completedAt, null);
+  assert.deepEqual(incompleteTeam.opponents.map((entry) => entry.name), ["Opponent unavailable", "Opponent unavailable"]);
+  assert.deepEqual(incompleteTeam.partners.map((entry) => entry.name), ["Partner unavailable"]);
+
+  const spacedName = normalizeMatch({
+    ...doublesMatch,
+    id: "spaced-name",
+    sides: [
+      { sideNumber: "SIDE1", players: [
+        { person: person("opponent-one", "OPP1", "  Ana   Maria ", " One  ") },
+        { person: person("opponent-two", "OPP2", "Bea", "Two") },
+      ] },
+      doublesMatch.sides![1],
+    ],
+  }, player, []);
+  assert.equal(spacedName?.opponents[0].name, "Ana Maria One");
+});
+
+test("ignores invalid rating dates and replaces a sentinel profile name with the Tennis ID", () => {
+  const response = normalizeWtnResponse("test1234", {
+    id: "player-person",
+    tennisID: "TEST1234",
+    standardGivenName: "UNKNOWN",
+    standardFamilyName: "UNKNOWN",
+  }, [{ type: "SINGLE", ratingDate: "invalid", tennisNumber: 20 }]);
+  assert.equal(response.player.name, "TEST1234");
+  assert.equal(response.ratings.singles, null);
+  assert.equal(response.ratings.updatedAt, null);
+  assert.deepEqual(response.ratings.history.singles, []);
+});

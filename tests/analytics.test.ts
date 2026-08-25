@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { calculateAnalytics } from "../lib/analytics/calculate.ts";
 import { decidingSetIndex, isCompetitiveMatch } from "../lib/analytics/eligibility.ts";
-import { currentStreakText } from "../lib/analytics/format.ts";
+import { currentStreakText, percentagePointComparison } from "../lib/analytics/format.ts";
 import { filterAnalyticsMatches } from "../lib/analytics/trends.ts";
 import type { NormalizedMatch, NormalizedSet } from "../lib/wtn/types.ts";
 
@@ -74,7 +74,24 @@ test("does not count a match-tiebreak-only result as normal-set or game evidence
   assert.equal(report.sets.sampleSize, 0);
   assert.equal(report.games.sampleSize, 0);
   assert.equal(report.averageSetsPlayed.value, null);
+  assert.equal(report.straightSetWins.value, null);
+  assert.equal(report.straightSetLosses.value, null);
   assert.deepEqual(report.matchTiebreaks.eligibleMatchIds, [onlyMatchTiebreak.id]);
+});
+
+test("keeps score-complete totals, samples and evidence IDs aligned", () => {
+  const partiallyScored = match("partial-score", "win", [
+    set(6, 4),
+    { ...set(0, 0), side1Games: null, side2Games: null },
+  ]);
+  const report = calculateAnalytics([partiallyScored]);
+  assert.equal(report.coverage.completeScore, 0);
+  assert.equal(report.sets.sampleSize, 0);
+  assert.equal(report.sets.denominator, 0);
+  assert.deepEqual(report.sets.eligibleMatchIds, []);
+  assert.equal(report.games.sampleSize, 0);
+  assert.deepEqual(report.games.eligibleMatchIds, []);
+  assert.equal(report.averageSetsPlayed.value, null);
 });
 
 test("classifies first-set comebacks and lead protection with zero-opportunity safety", () => {
@@ -135,6 +152,13 @@ test("filters analytics by match type, standard periods and custom dates", () =>
   assert.deepEqual(filterAnalyticsMatches(matches, "singles", "all").map((entry) => entry.id), [straightWin.id, straightLoss.id]);
   assert.deepEqual(filterAnalyticsMatches(matches, "all", "1m").map((entry) => entry.id), [straightWin.id, doubles.id]);
   assert.deepEqual(filterAnalyticsMatches(matches, "all", "custom", "2026-07-15", "2026-08-15").map((entry) => entry.id), [straightWin.id]);
+});
+
+test("uses completion-first dates and clamped month boundaries for Analytics periods", () => {
+  const boundary = { ...straightLoss, id: "feb-boundary", date: "2026-02-01T00:00:00.000Z", completedAt: "2026-02-28T23:00:00.000Z" };
+  const latest = { ...straightWin, id: "mar-latest", date: "2026-03-01T00:00:00.000Z", completedAt: "2026-03-31T23:00:00.000Z" };
+  assert.deepEqual(filterAnalyticsMatches([boundary, latest], "all", "1m").map((entry) => entry.id), [boundary.id, latest.id]);
+  assert.equal(calculateAnalytics([boundary]).trends[0].month, "2026-02");
 });
 
 test("builds monthly, rolling-form and opponent-strength trends", () => {
@@ -204,6 +228,50 @@ test("analytics observations require five eligible matches and a meaningful over
   const evenOpeningSetLosses = Array.from({ length: 5 }, (_, index) => match(`even-opening-loss-${index}`, "loss", [set(3, 6), set(4, 6)]));
   const evenOpeningSetWins = Array.from({ length: 5 }, (_, index) => match(`even-opening-win-${index}`, "win", [set(3, 6), set(6, 3), set(6, 4)]));
   assert.equal(calculateAnalytics([...evenOpeningSetLosses, ...evenOpeningSetWins]).insights.some((insight) => insight.label === "Opening-set response"), false);
+});
+
+test("treats an exact displayed ten-point difference as meaningful", () => {
+  const openingWins = Array.from({ length: 2 }, (_, index) => match(`ten-point-opening-win-${index}`, "win", [set(3, 6), set(6, 3), set(6, 4)]));
+  const openingLosses = Array.from({ length: 3 }, (_, index) => match(`ten-point-opening-loss-${index}`, "loss", [set(3, 6), set(4, 6)]));
+  const otherWins = Array.from({ length: 3 }, (_, index) => match(`ten-point-other-win-${index}`, "win", [set(6, 3), set(6, 4)]));
+  const otherLosses = Array.from({ length: 2 }, (_, index) => match(`ten-point-other-loss-${index}`, "loss", [set(6, 3), set(3, 6), set(3, 6)]));
+  const openingInsight = calculateAnalytics([...openingWins, ...openingLosses, ...otherWins, ...otherLosses]).insights
+    .find((insight) => insight.label === "Opening-set response");
+  assert.equal(openingInsight?.text, "Won 40% of matches after dropping the opening set — 10 percentage points below overall.");
+});
+
+test("uses singular percentage-point grammar", () => {
+  assert.equal(percentagePointComparison(.49, .5), " — 1 percentage point below overall.");
+});
+
+test("uses complete opponent ratings for context without requiring the player rating", () => {
+  const report = calculateAnalytics([missingWtn]);
+  assert.equal(report.averageOpponentWtn.value, 20);
+  assert.equal(report.averageOpponentWtn.sampleSize, 1);
+  assert.deepEqual(report.strongestOpponentBeaten, { name: "Opponent missing-wtn", wtn: 20, matchId: missingWtn.id });
+  assert.equal(report.strongerOpponents.sampleSize, 0);
+  assert.equal(report.upsetWins.value, 0);
+});
+
+test("groups doubles partners by stable identity and retains missing-partner evidence", () => {
+  const withPartner = (id: string, partnerId: string | null, name: string) => match(id, "win", [set(6, 4), set(6, 4)], {
+    matchType: "doubles",
+    partners: [{ id: partnerId, tennisId: partnerId, name, wtnBeforeMatch: 22 }],
+    opponents: [
+      { id: `${id}-o1`, tennisId: null, name: "Opponent One", wtnBeforeMatch: 20 },
+      { id: `${id}-o2`, tennisId: null, name: "Opponent Two", wtnBeforeMatch: 20 },
+    ],
+  });
+  const report = calculateAnalytics([
+    withPartner("partner-one-a", "P1", "Alex Smith"),
+    withPartner("partner-one-b", "P1", "Alex S."),
+    withPartner("partner-two", "P2", "Alex Smith"),
+    match("missing-partner", "loss", [set(4, 6), set(4, 6)], { matchType: "doubles", partners: [] }),
+  ]);
+  assert.equal(report.partners.length, 3);
+  assert.deepEqual(report.partners.find((partner) => partner.name === "Alex Smith" && partner.matchIds.includes("partner-one-a"))?.matchIds, ["partner-one-a", "partner-one-b"]);
+  assert.deepEqual(report.partners.find((partner) => partner.matchIds.includes("partner-two"))?.matchIds, ["partner-two"]);
+  assert.deepEqual(report.partners.find((partner) => partner.name === "Partner unavailable")?.matchIds, ["missing-partner"]);
 });
 
 test("fixtures cover all required normalized match shapes", () => {

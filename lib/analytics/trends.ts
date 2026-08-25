@@ -2,6 +2,7 @@ import { hasUsableSets, isCompetitiveMatch, normalSets, playerScore, playerWonSe
 import type { AnalyticsMatchType, AnalyticsPeriod, TrendPoint } from "./types";
 import type { NormalizedMatch } from "../wtn/types";
 import { averageOpponentWtn, chronologicalMatchOrder } from "../wtn/match-utils.ts";
+import { matchScopeDate, subtractUtcCalendarMonths } from "../wtn/date-utils.ts";
 
 const PERIOD_MONTHS: Record<Exclude<AnalyticsPeriod, "all" | "custom">, number> = { "1m": 1, "3m": 3, "6m": 6, "1y": 12 };
 
@@ -9,15 +10,14 @@ export function filterAnalyticsMatches(matches: NormalizedMatch[], matchType: An
   const matchingType = matchType === "all" ? matches : matches.filter((match) => match.matchType === matchType);
   let cutoff = "";
   if (period !== "all" && period !== "custom") {
-    const latest = [...matchingType].filter((match) => match.date).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))[0]?.date;
+    const latestMatch = [...matchingType].filter((match) => matchScopeDate(match)).sort((a, b) => chronologicalMatchOrder(b, a))[0];
+    const latest = latestMatch ? matchScopeDate(latestMatch) : null;
     if (latest) {
-      const date = new Date(latest);
-      date.setUTCMonth(date.getUTCMonth() - PERIOD_MONTHS[period]);
-      cutoff = date.toISOString().slice(0, 10);
+      cutoff = subtractUtcCalendarMonths(new Date(latest), PERIOD_MONTHS[period]).toISOString().slice(0, 10);
     }
   }
   return matchingType.filter((match) => {
-    const date = match.date?.slice(0, 10) ?? "";
+    const date = matchScopeDate(match)?.slice(0, 10) ?? "";
     if (period === "custom" && from && (!date || date < from)) return false;
     if (period === "custom" && to && (!date || date > to)) return false;
     if (cutoff && (!date || date < cutoff)) return false;
@@ -30,8 +30,9 @@ export function monthlyTrends(matches: NormalizedMatch[]): TrendPoint[] {
   const rows = new Map<string, WorkingRow>();
   const recentResults: Array<"win" | "loss"> = [];
   for (const match of [...matches].sort(chronologicalMatchOrder)) {
-    if (!match.date || !isCompetitiveMatch(match)) continue;
-    const month = match.date.slice(0, 7);
+    const date = matchScopeDate(match);
+    if (!date || !isCompetitiveMatch(match)) continue;
+    const month = date.slice(0, 7);
     const row = rows.get(month) ?? { wins: 0, losses: 0, matches: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0, rolling5WinRate: null, rolling10WinRate: null, rolling5Wins: 0, rolling5Sample: 0, rolling10Wins: 0, rolling10Sample: 0, opponentWtnTotal: 0, opponentWtnSample: 0 };
     row.matches += 1;
     if (match.result === "win") row.wins += 1; else row.losses += 1;

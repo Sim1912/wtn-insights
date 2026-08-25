@@ -1,4 +1,9 @@
 import type { NormalizedMatch } from "./types";
+import { matchScopeDate, normalizeDateString } from "./date-utils.ts";
+
+export const SIMILAR_WTN_BAND = 1;
+
+const isFiniteNumber = (value: number | null): value is number => typeof value === "number" && Number.isFinite(value);
 
 export type MatchFilters = {
   result: "all" | "win" | "loss";
@@ -17,23 +22,23 @@ export const DEFAULT_FILTERS: MatchFilters = {
 };
 
 export function chronologicalMatchOrder(a: NormalizedMatch, b: NormalizedMatch): number {
-  const completed = (a.completedAt ?? a.date ?? "").localeCompare(b.completedAt ?? b.date ?? "");
+  const completed = (matchScopeDate(a) ?? "").localeCompare(matchScopeDate(b) ?? "");
   if (completed) return completed;
-  const started = (a.date ?? "").localeCompare(b.date ?? "");
+  const started = (normalizeDateString(a.date) ?? "").localeCompare(normalizeDateString(b.date) ?? "");
   return started || a.id.localeCompare(b.id);
 }
 
 export function averageOpponentWtn(match: NormalizedMatch): number | null {
-  const values = match.opponents.map((opponent) => opponent.wtnBeforeMatch).filter((value): value is number => value != null);
+  const values = match.opponents.map((opponent) => opponent.wtnBeforeMatch).filter(isFiniteNumber);
   const expectedPlayers = match.matchType === "doubles" ? 2 : match.matchType === "singles" ? 1 : match.opponents.length;
-  return values.length === expectedPlayers && match.opponents.length === expectedPlayers
+  return expectedPlayers > 0 && values.length === expectedPlayers && match.opponents.length === expectedPlayers
     ? values.reduce((sum, value) => sum + value, 0) / values.length
     : null;
 }
 
 export function averagePlayerTeamWtn(match: NormalizedMatch): number | null {
   const values = [match.playerWtnBeforeMatch, ...match.partners.map((partner) => partner.wtnBeforeMatch)]
-    .filter((value): value is number => value != null);
+    .filter(isFiniteNumber);
   const expectedPlayers = match.matchType === "doubles" ? 2 : 1;
   return values.length === expectedPlayers ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
@@ -42,8 +47,8 @@ export function opponentStrength(match: NormalizedMatch): "stronger" | "weaker" 
   const opponentWtn = averageOpponentWtn(match);
   const playerTeamWtn = averagePlayerTeamWtn(match);
   if (opponentWtn == null || playerTeamWtn == null) return "unknown";
-  if (opponentWtn < playerTeamWtn) return "stronger";
-  if (opponentWtn > playerTeamWtn) return "weaker";
+  if (opponentWtn <= playerTeamWtn - SIMILAR_WTN_BAND) return "stronger";
+  if (opponentWtn >= playerTeamWtn + SIMILAR_WTN_BAND) return "weaker";
   return "equal";
 }
 
@@ -67,8 +72,9 @@ export type MonthlyResult = { month: string; wins: number; losses: number; total
 export function monthlyResults(matches: NormalizedMatch[]): MonthlyResult[] {
   const months = new Map<string, { wins: number; losses: number }>();
   for (const match of matches) {
-    if (!match.date || match.result === "unknown") continue;
-    const month = match.date.slice(0, 7);
+    const date = matchScopeDate(match);
+    if (!date || match.result === "unknown") continue;
+    const month = date.slice(0, 7);
     const current = months.get(month) ?? { wins: 0, losses: 0 };
     if (match.result === "win") current.wins += 1;
     else current.losses += 1;
@@ -91,14 +97,14 @@ export type SeasonSnapshot = {
 };
 
 function recordedYear(match: NormalizedMatch): string | null {
-  const date = match.completedAt ?? match.date;
+  const date = matchScopeDate(match);
   return date && /^\d{4}-/.test(date) ? date.slice(0, 4) : null;
 }
 
 function knownOpponentName(match: NormalizedMatch): string {
   return match.opponents
     .map((opponent) => opponent.name.trim())
-    .filter((name) => name && !/^unknown(?: unknown)?$/i.test(name))
+    .filter((name) => name && !/^unknown(?: unknown| player)?$/i.test(name))
     .join(" / ") || "Opponent unavailable";
 }
 
@@ -126,7 +132,7 @@ export function filterAndSortMatches(matches: NormalizedMatch[], filters: MatchF
   const filtered = matches.filter((match) => {
     if (filters.result !== "all" && match.result !== filters.result) return false;
     if (filters.matchType !== "all" && match.matchType !== filters.matchType) return false;
-    const date = match.date?.slice(0, 10) ?? "";
+    const date = matchScopeDate(match)?.slice(0, 10) ?? "";
     if (filters.dateFrom && (!date || date < filters.dateFrom)) return false;
     if (filters.dateTo && (!date || date > filters.dateTo)) return false;
     if (filters.tournament && match.tournament !== filters.tournament) return false;

@@ -78,6 +78,32 @@ test("exposes semantic Grass and Clay controls without remounting pages or chart
   );
 });
 
+test("keeps theme switching focusable while a transition is locked", () => {
+  assert.match(appChrome, /aria-disabled=\{pendingTheme \? "true" : undefined\}/);
+  assert.doesNotMatch(appChrome, /disabled=\{pendingTheme != null\}/);
+  assert.match(styles, /\.theme-selector\[aria-disabled=["']true["']\]/);
+});
+
+test("renders the independent-prototype disclosure in the shared layout", () => {
+  assert.match(layout, /<footer\s+className="product-footer">/);
+  assert.match(layout, /Independent prototype\. Not affiliated with or endorsed by the ITF or World Tennis Number\./);
+  assert.match(styles, /\.product-footer-inner\s*\{[^}]*border-top:\s*1px solid var\(--canvas-border\)/s);
+});
+
+test("player context has explicit missing-data fallbacks", () => {
+  assert.match(appChrome, /Player unavailable/);
+  assert.match(appChrome, /Country unavailable/);
+  assert.match(appChrome, /Tennis ID unavailable/);
+  assert.match(appChrome, /Last update unavailable/);
+  assert.match(appChrome, /Number\.isNaN\(date\.getTime\(\)\)/);
+});
+
+test("shared mobile controls retain touch targets without hover translation", () => {
+  assert.match(styles, /@media\s*\(pointer:\s*coarse\)\s*\{[\s\S]*?\.theme-selector\s*\{[^}]*min-height:\s*44px/s);
+  assert.match(styles, /@media\s*\(pointer:\s*coarse\)\s*\{[\s\S]*?\.nav-player-search button\s*\{[^}]*width:\s*44px;[^}]*height:\s*44px/s);
+  assert.doesNotMatch(styles, /:hover[^{}]*\{[^}]*transform:\s*translate(?:3d|X|Y)?\(/s);
+});
+
 test("provides Clay styling, a visible selector focus state and a short sweep", () => {
   assert.match(styles, /html\s*\[\s*data-theme\s*=\s*["']?clay["']?\s*\]/);
   const hasSelectorFocusRule = [...styles.matchAll(/([^{}]+)\{/g)].some((match) =>

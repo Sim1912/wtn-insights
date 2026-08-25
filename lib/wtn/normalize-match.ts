@@ -1,4 +1,5 @@
 import { parseScoreText, resultFromWinner, statusFromScoreText } from "./score.ts";
+import { matchScopeDate, normalizeDateString } from "./date-utils.ts";
 import type {
   MatchParticipant,
   MatchStatus,
@@ -51,25 +52,37 @@ function readableEnum(value: string | null | undefined): string | null {
   return value.toLowerCase().replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function personName(person: RawPerson | null | undefined): string {
-  const given = person?.standardGivenName || person?.nativeGivenName || "";
-  const family = person?.standardFamilyName || person?.nativeFamilyName || "";
-  return `${given} ${family}`.trim() || "Unknown player";
+function cleanNamePart(value: string | null | undefined): string | null {
+  const normalized = value?.replace(/\s+/g, " ").trim();
+  return !normalized || /^(?:unknown|n\/?a|null|undefined)$/i.test(normalized) ? null : normalized;
+}
+
+function composedName(givenValue: string | null | undefined, familyValue: string | null | undefined): string | null {
+  const rawName = [givenValue, familyValue].map((part) => part?.replace(/\s+/g, " ").trim()).filter(Boolean).join(" ");
+  if (/^unknown(?: unknown| player)?$/i.test(rawName)) return null;
+  const name = [cleanNamePart(givenValue), cleanNamePart(familyValue)].filter(Boolean).join(" ");
+  return name || null;
+}
+
+function personName(person: RawPerson | null | undefined, fallback: string): string {
+  return composedName(person?.standardGivenName, person?.standardFamilyName)
+    ?? composedName(person?.nativeGivenName, person?.nativeFamilyName)
+    ?? fallback;
 }
 
 function ratingForPerson(match: RawMatch, personId: string | null | undefined, type: MatchType): number | null {
   if (!personId) return null;
   const desiredType = type === "doubles" ? "DOUBLE" : type === "singles" ? "SINGLE" : null;
-  const ratings = match.worldTennisNumbers?.filter((rating) => rating.personId === personId) ?? [];
-  const exact = ratings.find((rating) => !desiredType || rating.type === desiredType) ?? ratings[0];
+  if (!desiredType) return null;
+  const exact = match.worldTennisNumbers?.find((rating) => rating.personId === personId && rating.type === desiredType);
   return asFinite(exact?.tennisNumber);
 }
 
-function participant(match: RawMatch, person: RawPerson | null | undefined, type: MatchType): MatchParticipant {
+function participant(match: RawMatch, person: RawPerson | null | undefined, type: MatchType, fallback: string): MatchParticipant {
   return {
     id: person?.id ?? null,
     tennisId: person?.tennisID ?? null,
-    name: personName(person),
+    name: personName(person, fallback),
     wtnBeforeMatch: ratingForPerson(match, person?.id, type),
   };
 }
@@ -158,20 +171,27 @@ export function normalizeMatch(
     ?? readableEnum(tournament?.surfaceCategory);
   const environmentValue = match.indoorOutdoor !== "UNKNOWN" ? match.indoorOutdoor : tournament?.indoorOutdoor;
 
+  const opponents = opponentSide?.players?.map(({ person }) => participant(match, person, type, "Opponent unavailable")) ?? [];
+  const partners = playerPeople
+    .filter((person) => person !== playerPerson)
+    .map((person) => participant(match, person, type, "Partner unavailable"));
+  const expectedOpponents = type === "doubles" ? 2 : type === "singles" ? 1 : opponents.length;
+  const expectedPartners = type === "doubles" ? 1 : 0;
+  while (opponents.length < expectedOpponents) opponents.push(participant(match, null, type, "Opponent unavailable"));
+  while (partners.length < expectedPartners) partners.push(participant(match, null, type, "Partner unavailable"));
+
   return {
     id,
     providerMatchId: match.providerMatchId ?? null,
-    date: match.start ?? null,
-    completedAt: match.end ?? null,
+    date: normalizeDateString(match.start),
+    completedAt: normalizeDateString(match.end),
     matchType: type,
     status: matchStatus(match.status, match.score?.scoreString),
     playerSide,
     winningSide: winner,
     result: resultFromWinner(playerSide, winner),
-    opponents: opponentSide?.players?.map(({ person }) => participant(match, person, type)) ?? [],
-    partners: playerPeople
-      .filter((person) => person !== playerPerson)
-      .map((person) => participant(match, person, type)),
+    opponents,
+    partners,
     playerWtnBeforeMatch: ratingForPerson(match, playerPerson?.id, type),
     sets: structuredSets(match, winner),
     scoreText: match.score?.scoreString ?? null,
@@ -188,13 +208,13 @@ export function normalizeMatch(
 }
 
 function normalizedHistory(raw: RawRating[], type: "SINGLE" | "DOUBLE"): RatingPoint[] {
-  return raw
-    .filter((rating) => rating.type === type && rating.ratingDate && asFinite(rating.tennisNumber) != null)
-    .map((rating) => {
+  return raw.flatMap((rating) => {
+      const date = normalizeDateString(rating.ratingDate);
+      if (rating.type !== type || !date || asFinite(rating.tennisNumber) == null) return [];
       const value = asFinite(rating.tennisNumber)!;
       const previous = asFinite(rating.prevTennisNumber);
-      return {
-        date: rating.ratingDate!,
+      return [{
+        date,
         value,
         previous,
         change: previous == null ? null : value - previous,
@@ -204,7 +224,7 @@ function normalizedHistory(raw: RawRating[], type: "SINGLE" | "DOUBLE"): RatingP
         connectedMatches: Array.isArray(rating.matchUps)
           ? new Set(rating.matchUps.map((match) => match.id || match.providerMatchId).filter(Boolean)).size
           : null,
-      };
+      }];
     })
     .sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -212,14 +232,16 @@ function normalizedHistory(raw: RawRating[], type: "SINGLE" | "DOUBLE"): RatingP
 function ratingSummary(raw: RawRating[]): RatingSummary {
   const byMostRecent = (a: RawRating, b: RawRating) => (b.ratingDate ?? "").localeCompare(a.ratingDate ?? "");
   const singles = raw
-    .filter((rating) => rating.type === "SINGLE" && asFinite(rating.tennisNumber) != null)
+    .filter((rating) => rating.type === "SINGLE" && normalizeDateString(rating.ratingDate) && asFinite(rating.tennisNumber) != null)
     .sort(byMostRecent);
   const doubles = raw
-    .filter((rating) => rating.type === "DOUBLE" && asFinite(rating.tennisNumber) != null)
+    .filter((rating) => rating.type === "DOUBLE" && normalizeDateString(rating.ratingDate) && asFinite(rating.tennisNumber) != null)
     .sort(byMostRecent);
   const latestSingles = singles[0];
   const latestDoubles = doubles[0];
-  const dates = [latestSingles?.ratingDate, latestDoubles?.ratingDate].filter((date): date is string => Boolean(date));
+  const dates = [latestSingles?.ratingDate, latestDoubles?.ratingDate]
+    .map(normalizeDateString)
+    .filter((date): date is string => date != null);
   return {
     singles: asFinite(latestSingles?.tennisNumber),
     doubles: asFinite(latestDoubles?.tennisNumber),
@@ -245,7 +267,7 @@ export function normalizeWtnResponse(tennisId: string, rawPerson: RawPerson | nu
   const player: PlayerProfile = {
     id: normalizedId,
     personId: rawPerson?.id ?? null,
-    name: personName(rawPerson) === "Unknown player" ? normalizedId : personName(rawPerson),
+    name: personName(rawPerson, normalizedId),
     country: rawPerson?.nationalityCode ?? null,
   };
 
@@ -261,7 +283,7 @@ export function normalizeWtnResponse(tennisId: string, rawPerson: RawPerson | nu
     }
   }
 
-  const matches = [...byId.values()].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? "") || a.id.localeCompare(b.id));
+  const matches = [...byId.values()].sort((a, b) => (matchScopeDate(b) ?? "").localeCompare(matchScopeDate(a) ?? "") || a.id.localeCompare(b.id));
   if (!matches.length) warnings.push("WTN returned rating history but no match records for this period.");
   return {
     player,

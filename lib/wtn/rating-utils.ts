@@ -1,4 +1,5 @@
 import type { RatingPoint } from "./types";
+import { normalizeDateString, subtractUtcCalendarMonths } from "./date-utils.ts";
 
 export type RatingPeriod = "1m" | "3m" | "6m" | "1y" | "all";
 
@@ -11,10 +12,13 @@ const PERIOD_MONTHS: Record<Exclude<RatingPeriod, "all">, number> = {
 
 export function filterRatingPeriod(points: RatingPoint[], period: RatingPeriod): RatingPoint[] {
   if (period === "all" || !points.length) return points;
-  const latest = new Date(points.at(-1)!.date);
-  const cutoff = new Date(latest);
-  cutoff.setUTCMonth(cutoff.getUTCMonth() - PERIOD_MONTHS[period]);
-  return points.filter((point) => new Date(point.date) >= cutoff);
+  const latestDate = normalizeDateString(points.at(-1)!.date);
+  if (!latestDate) return [];
+  const cutoff = subtractUtcCalendarMonths(new Date(latestDate), PERIOD_MONTHS[period]).toISOString().slice(0, 10);
+  return points.filter((point) => {
+    const date = normalizeDateString(point.date);
+    return date != null && date.slice(0, 10) >= cutoff;
+  });
 }
 
 export type ChartRatingPoint = Omit<RatingPoint, "value"> & { value: number | null; timestamp: number; isGap?: boolean };

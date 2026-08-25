@@ -36,7 +36,7 @@ function ScoreCell({ set, side }: { set: NormalizedSet; side: 1 | 2 }) {
 function TeamName({ names, label }: { names: string[]; label?: string }) {
   return <div className="team-name">
     {label ? <span className="team-label">{label}</span> : null}
-    <span className="team-members">{names.map((name) => <strong key={name}>{name}</strong>)}</span>
+    <span className="team-members">{names.map((name, index) => <strong key={`${name}-${index}`}>{name}</strong>)}</span>
   </div>;
 }
 
@@ -45,14 +45,20 @@ function RatingCell({ values, players, strength }: { values: Array<string | null
   return <td className="wtn-cell" data-team-size={entries.length} data-strength={strength === "stronger" ? "stronger" : undefined}>
     <span className="wtn-values">{entries.map((name, index) => {
       const value = values[index] ?? null;
-      return <span key={`${name}-${index}`}>{value ?? "—"}</span>;
+      return <span key={`${name}-${index}`}>{value ?? <><span aria-hidden="true">—</span><span className="sr-only">Rating unavailable</span></>}</span>;
     })}</span>
     {strength === "stronger" ? <small>Stronger</small> : null}
   </td>;
 }
 
-function ParticipantIds({ label, participants }: { label: string; participants: Array<{ name: string; tennisId?: string | null; id?: string | null }> }) {
-  return <div className="detail-group"><dt>{label}</dt>{participants.map((participant) => <dd key={`${participant.name}-${participant.tennisId ?? participant.id}`}><span>{participant.name}</span><code>{participant.tennisId || participant.id || "ID unavailable"}</code></dd>)}</div>;
+function ParticipantIds({ label, participants, emptyLabel }: { label: string; participants: Array<{ name: string; tennisId?: string | null; id?: string | null }>; emptyLabel: string }) {
+  return <div className="detail-group"><dt>{label}</dt>{participants.length ? participants.map((participant, index) => <dd key={`${participant.name}-${participant.tennisId ?? participant.id ?? "missing"}-${index}`}><span>{participant.name}</span><code>{participant.tennisId || participant.id || "ID unavailable"}</code></dd>) : <dd><span>{emptyLabel}</span><code>ID unavailable</code></dd>}</div>;
+}
+
+function completeTeam(names: string[], expectedPlayers: number, unavailableLabel: string) {
+  const complete = [...names];
+  while (complete.length < expectedPlayers) complete.push(unavailableLabel);
+  return complete;
 }
 
 export function MatchCard({
@@ -68,9 +74,10 @@ export function MatchCard({
 }) {
   const reactId = useId();
   const detailsId = `match-details-${reactId.replaceAll(":", "")}`;
-  const playerTeam = [player.name, ...match.partners.map((partner) => partner.name)];
+  const expectedPlayers = match.matchType === "doubles" ? 2 : 1;
+  const playerTeam = completeTeam([player.name, ...match.partners.map((partner) => partner.name)], expectedPlayers, "Partner unavailable");
   const opponentTeam = match.opponents.map((opponent) => opponent.name);
-  const opponentNames = opponentTeam.length ? opponentTeam : ["Opponent unavailable"];
+  const opponentNames = completeTeam(opponentTeam, expectedPlayers, "Opponent unavailable");
   const strength = opponentStrength(match);
   const upset = match.result === "win" && strength === "stronger";
   const close = isCloseMatch(match);
@@ -84,11 +91,15 @@ export function MatchCard({
   const fallbackScore = renderScore(match.sets, match.playerSide, match.status, match.scoreText);
   const resultLabel = match.result === "win" ? "Win" : match.result === "loss" ? "Loss" : "Result unavailable";
   const resultInsight = upset ? "Upset win" : close ? "Close match" : null;
+  const strengthText = strength === "stronger" ? "stronger opposition" : strength === "weaker" ? "weaker opposition" : "difference";
+  const comparisonText = difference == null ? "Comparison unavailable"
+    : match.matchType === "doubles" ? `Team-average WTN difference: ${difference.toFixed(2)} · ${strengthText}`
+    : `WTN difference: ${difference.toFixed(2)} · ${strengthText}`;
 
   return <article className={`match-card ${expanded ? "expanded" : ""}`} data-result={match.result} data-insight={upset ? "upset" : close ? "close" : undefined}>
     <header className="match-card-header">
       <div className="match-event">
-        <strong>{match.tournament ?? "Event unavailable"}</strong>
+        <strong>{match.tournament ?? "Competition unavailable"}</strong>
         {match.round ? <span>{match.round}</span> : null}
       </div>
       <div className="match-result-meta">
@@ -104,7 +115,7 @@ export function MatchCard({
       <thead><tr><th scope="col"><span className="sr-only">Players</span></th><th scope="col"><abbr title="World Tennis Number">WTN</abbr></th>{match.sets.length ? match.sets.map((set, index) => <th scope="col" aria-label={set.isMatchTiebreak ? "Match tiebreak" : undefined} key={index}>{set.isMatchTiebreak ? "MTB" : `Set ${index + 1}`}</th>) : <th scope="col">Score</th>}</tr></thead>
       <tbody>
         <tr className={match.winningSide === match.playerSide ? "winning-team" : ""}>
-          <th scope="row"><TeamName names={playerTeam} label={match.matchType === "doubles" ? "Your team" : undefined} /></th>
+          <th scope="row"><TeamName names={playerTeam} label={match.matchType === "doubles" ? "Player team" : undefined} /></th>
           <RatingCell values={playerRatings} players={playerTeam} />
           {match.sets.length ? match.sets.map((set, index) => <ScoreCell key={`player-${index}`} set={set} side={match.playerSide} />) : <td className="score-status">{fallbackScore}</td>}
         </tr>
@@ -129,7 +140,7 @@ export function MatchCard({
       <div className="match-details">
         <div className="detail-insight">
           <p>Rating context</p>
-          <strong>{difference == null ? "Comparison unavailable" : `${difference.toFixed(2)} WTN ${strength === "stronger" ? "stronger opposition" : strength === "weaker" ? "weaker opposition" : "difference"}`}</strong>
+          <strong>{comparisonText}</strong>
           {match.scoreText && <small>API score: {match.scoreText}</small>}
         </div>
         <dl className="detail-grid">
@@ -141,8 +152,8 @@ export function MatchCard({
           {match.matchFormat && <div><dt>Format</dt><dd>{match.matchFormat}</dd></div>}
           {match.draw && <div><dt>Draw</dt><dd>{match.draw}</dd></div>}
           {match.statusCodes.length > 0 && <div><dt>Status codes</dt><dd>{match.statusCodes.join(", ")}</dd></div>}
-          <ParticipantIds label="Player IDs" participants={[{ name: player.name, tennisId: player.id, id: player.personId }, ...match.partners]} />
-          <ParticipantIds label="Opponent IDs" participants={match.opponents} />
+          <ParticipantIds label="Player IDs" participants={[{ name: player.name, tennisId: player.id, id: player.personId }, ...match.partners]} emptyLabel="Player unavailable" />
+          <ParticipantIds label="Opponent IDs" participants={match.opponents} emptyLabel="Opponent unavailable" />
           <div className="match-id-detail"><dt>Match ID</dt><dd><code>{match.providerMatchId || match.id}</code></dd></div>
         </dl>
         {(!match.sets.length || !match.opponents.length || (match.matchType === "doubles" && (match.partners.length !== 1 || match.opponents.length !== 2))) && <p className="data-note">Some score or participant details were not supplied by WTN.</p>}

@@ -37,6 +37,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
 
   return <html lang="en" data-theme={initialTheme} suppressHydrationWarning>
     <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
-    <body><div id="court-theme-sweep" className="court-theme-sweep" aria-hidden="true" />{children}</body>
+    <body>
+      <div id="court-theme-sweep" className="court-theme-sweep" aria-hidden="true" />
+      {children}
+      <footer className="product-footer">
+        <p className="product-footer-inner shell">Independent prototype. Not affiliated with or endorsed by the ITF or World Tennis Number.</p>
+      </footer>
+    </body>
   </html>;
 } 

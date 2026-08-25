@@ -1,15 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chronologicalMatchOrder, currentSeasonSnapshot, DEFAULT_FILTERS, filterAndSortMatches, isCloseMatch, monthlyResults, opponentStrength, type MatchFilters } from "../lib/wtn/match-utils.ts";
+import { averageOpponentWtn, chronologicalMatchOrder, currentSeasonSnapshot, DEFAULT_FILTERS, filterAndSortMatches, isCloseMatch, monthlyResults, opponentStrength, SIMILAR_WTN_BAND, type MatchFilters } from "../lib/wtn/match-utils.ts";
 import type { NormalizedMatch } from "../lib/wtn/types.ts";
 
-const makeMatch = (partial: Partial<NormalizedMatch> & Pick<NormalizedMatch, "id">): NormalizedMatch => ({
-  id: partial.id, providerMatchId: null, date: "2026-01-01T00:00:00.000Z", completedAt: null, matchType: "singles", status: "completed",
+const makeMatch = (partial: Partial<NormalizedMatch> & Pick<NormalizedMatch, "id">): NormalizedMatch => {
+  const { id, ...overrides } = partial;
+  return {
+  id, providerMatchId: null, date: "2026-01-01T00:00:00.000Z", completedAt: null, matchType: "singles", status: "completed",
   playerSide: 1, winningSide: 1, result: "win", opponents: [{ id: "o", tennisId: null, name: "Alex Strong", wtnBeforeMatch: 20 }],
   partners: [], playerWtnBeforeMatch: 25, sets: [{ side1Games: 6, side2Games: 4, side1Tiebreak: null, side2Tiebreak: null, isMatchTiebreak: false }],
   scoreText: "6-4", matchFormat: null, draw: null, statusCodes: [], tournament: "Open A", tournamentId: null,
-  round: null, ageCategory: null, surface: null, environment: null, ...partial,
-});
+  round: null, ageCategory: null, surface: null, environment: null, ...overrides,
+  };
+};
 
 const matches = [
   makeMatch({ id: "new-win", date: "2026-03-01T00:00:00.000Z" }),
@@ -129,4 +132,38 @@ test("builds the latest recorded season snapshot without inventing unavailable o
     opponents: [{ id: "unknown", tennisId: null, name: "UNKNOWN UNKNOWN", wtnBeforeMatch: 18 }],
   });
   assert.equal(currentSeasonSnapshot([unknownOpponent]).strongestOpponentBeaten?.name, "Opponent unavailable");
+});
+
+test("uses the shared 1.0 WTN similarity band at exact boundaries", () => {
+  assert.equal(SIMILAR_WTN_BAND, 1);
+  const withOpponent = (wtnBeforeMatch: number) => makeMatch({
+    id: `opponent-${wtnBeforeMatch}`,
+    playerWtnBeforeMatch: 25,
+    opponents: [{ id: "o", tennisId: null, name: "Opponent", wtnBeforeMatch }],
+  });
+  assert.equal(opponentStrength(withOpponent(24.01)), "equal");
+  assert.equal(opponentStrength(withOpponent(24)), "stronger");
+  assert.equal(opponentStrength(withOpponent(25.99)), "equal");
+  assert.equal(opponentStrength(withOpponent(26)), "weaker");
+});
+
+test("never returns NaN for incomplete or non-finite opponent ratings", () => {
+  const nonFinite = makeMatch({
+    id: "non-finite-rating",
+    opponents: [{ id: "o", tennisId: null, name: "Opponent", wtnBeforeMatch: Number.NaN }],
+  });
+  assert.equal(averageOpponentWtn(nonFinite), null);
+  assert.equal(opponentStrength(nonFinite), "unknown");
+  assert.equal(averageOpponentWtn(makeMatch({ id: "missing-opponents", matchType: "unknown", opponents: [] })), null);
+});
+
+test("uses completion-first scope dates consistently for month, season and date filters", () => {
+  const crossingMonth = makeMatch({
+    id: "crossing-month",
+    date: "2025-12-31T23:00:00.000Z",
+    completedAt: "2026-01-01T01:00:00.000Z",
+  });
+  assert.equal(monthlyResults([crossingMonth])[0].month, "2026-01");
+  assert.equal(currentSeasonSnapshot([crossingMonth]).year, "2026");
+  assert.deepEqual(filterAndSortMatches([crossingMonth], { ...DEFAULT_FILTERS, dateFrom: "2026-01-01" }).map((entry) => entry.id), [crossingMonth.id]);
 });

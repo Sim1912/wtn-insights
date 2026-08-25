@@ -1,10 +1,11 @@
-import { averageOpponentWtn, averagePlayerTeamWtn, chronologicalMatchOrder } from "../wtn/match-utils.ts";
+import { averageOpponentWtn, averagePlayerTeamWtn, chronologicalMatchOrder, SIMILAR_WTN_BAND } from "../wtn/match-utils.ts";
 import type { NormalizedMatch, NormalizedSet } from "../wtn/types";
 import { decidingSetIndex, hasUsableSets, isBestOfFive, isCompetitiveMatch, matchTiebreakSets, normalSets, playerScore, playerWonSet, setSequence } from "./eligibility.ts";
 import { monthlyTrends } from "./trends.ts";
 import type { AnalyticsInsight, AnalyticsReport, DataCoverage, MetricResult, PatternRow, RatingBandRow, RecordResult } from "./types";
+import { percentagePointComparison, percentagePointDifference } from "./format.ts";
 
-export const SIMILAR_WTN_BAND = 1;
+export { SIMILAR_WTN_BAND } from "../wtn/match-utils.ts";
 const MINIMUM_INSIGHT_SAMPLE = 5;
 const MEANINGFUL_WIN_RATE_DIFFERENCE = .1;
 
@@ -22,16 +23,11 @@ function insightRate(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-function overallComparison(value: number, overallValue: number, baseline = "overall"): string {
-  const difference = Math.round(Math.abs(value - overallValue) * 100);
-  return ` — ${difference} percentage points ${value > overallValue ? "above" : "below"} ${baseline}.`;
-}
-
 function isUsefulInsight(result: RecordResult, overallValue: number | null): result is RecordResult & { value: number } {
   return result.sampleSize >= MINIMUM_INSIGHT_SAMPLE
     && result.value != null
     && overallValue != null
-    && Math.abs(result.value - overallValue) >= MEANINGFUL_WIN_RATE_DIFFERENCE;
+    && percentagePointDifference(result.value, overallValue) >= MEANINGFUL_WIN_RATE_DIFFERENCE * 100;
 }
 
 function setSideValues(set: NormalizedSet, playerSide: 1 | 2): [number, number] | null {
@@ -94,7 +90,7 @@ export function calculateAnalytics(matches: NormalizedMatch[]): AnalyticsReport 
   const total = matches.length;
   const competitive = matches.filter(isCompetitiveMatch);
   const scored = competitive.filter(hasUsableSets);
-  const normalScored = competitive.filter((match) => normalSets(match).length > 0);
+  const normalScored = scored.filter((match) => normalSets(match).length > 0);
   const firstNormal = (match: NormalizedMatch) => normalSets(match)[0];
   const lostFirst = scored.filter((match) => firstNormal(match) && playerWonSet(firstNormal(match), match.playerSide) === false);
   const wonFirst = scored.filter((match) => firstNormal(match) && playerWonSet(firstNormal(match), match.playerSide) === true);
@@ -111,7 +107,7 @@ export function calculateAnalytics(matches: NormalizedMatch[]): AnalyticsReport 
   });
 
   let setsWon = 0; let setsLost = 0; let gamesWon = 0; let gamesLost = 0;
-  for (const match of scored) for (const set of normalSets(match)) {
+  for (const match of normalScored) for (const set of normalSets(match)) {
     const won = playerWonSet(set, match.playerSide);
     const score = playerScore(set, match.playerSide);
     if (won != null) { if (won) setsWon++; else setsLost++; }
@@ -134,9 +130,13 @@ export function calculateAnalytics(matches: NormalizedMatch[]): AnalyticsReport 
   });
   const close = decidingMatches.filter(closeDecider);
 
-  const ratingEligible = competitive.flatMap((match) => {
-    const player = averagePlayerTeamWtn(match); const opponent = averageOpponentWtn(match);
-    return player == null || opponent == null ? [] : [{ match, player, opponent, difference: opponent - player }];
+  const opponentRated = competitive.flatMap((match) => {
+    const opponent = averageOpponentWtn(match);
+    return opponent == null ? [] : [{ match, opponent }];
+  });
+  const ratingEligible = opponentRated.flatMap(({ match, opponent }) => {
+    const player = averagePlayerTeamWtn(match);
+    return player == null ? [] : [{ match, player, opponent, difference: opponent - player }];
   });
   const stronger = ratingEligible.filter((row) => row.difference <= -SIMILAR_WTN_BAND).map((row) => row.match);
   const similar = ratingEligible.filter((row) => Math.abs(row.difference) < SIMILAR_WTN_BAND).map((row) => row.match);
@@ -156,22 +156,33 @@ export function calculateAnalytics(matches: NormalizedMatch[]): AnalyticsReport 
   for (const match of matches) { const label = scorePattern(match); patternsByLabel.set(label, [...(patternsByLabel.get(label) ?? []), match]); }
   const patterns: PatternRow[] = [...patternsByLabel.entries()].map(([label, rows]) => ({ label, count: rows.length, matchIds: rows.map((match) => match.id) })).sort((a, b) => b.count - a.count);
 
-  const partnerMap = new Map<string, NormalizedMatch[]>();
-  for (const match of competitive.filter((entry) => entry.matchType === "doubles")) for (const partner of match.partners) partnerMap.set(partner.name, [...(partnerMap.get(partner.name) ?? []), match]);
-  const partners = [...partnerMap.entries()].map(([name, rows]) => ({ name, wins: rows.filter((match) => match.result === "win").length, losses: rows.filter((match) => match.result === "loss").length, matchIds: rows.map((match) => match.id) })).sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
+  const partnerMap = new Map<string, { name: string; matches: NormalizedMatch[] }>();
+  for (const match of competitive.filter((entry) => entry.matchType === "doubles")) {
+    const partnerEntries = match.partners.length ? match.partners : [{ id: null, tennisId: null, name: "Partner unavailable", wtnBeforeMatch: null }];
+    for (const partner of partnerEntries) {
+      const missing = partner.name === "Partner unavailable";
+      const key = partner.tennisId || partner.id || (missing ? "missing-partner" : `name:${partner.name.toLocaleLowerCase()}`);
+      const group = partnerMap.get(key) ?? { name: partner.name, matches: [] };
+      if (!group.matches.some((entry) => entry.id === match.id)) group.matches.push(match);
+      partnerMap.set(key, group);
+    }
+  }
+  const partners = [...partnerMap.values()].map(({ name, matches: rows }) => ({ name, wins: rows.filter((match) => match.result === "win").length, losses: rows.filter((match) => match.result === "loss").length, matchIds: rows.map((match) => match.id) })).sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
 
-  const straightWins = scored.filter((match) => match.result === "win" && setSequence(match).every((result) => result === "win"));
-  const straightLosses = scored.filter((match) => match.result === "loss" && setSequence(match).every((result) => result === "loss"));
+  const straightWins = normalScored.filter((match) => matchTiebreakSets(match).length === 0 && match.result === "win" && setSequence(match).every((result) => result === "win"));
+  const straightLosses = normalScored.filter((match) => matchTiebreakSets(match).length === 0 && match.result === "loss" && setSequence(match).every((result) => result === "loss"));
   const comebackWinners = lostFirst.filter((match) => match.result === "win");
   const streak = streaks(competitive);
   const sortedRecent = [...competitive].sort((a, b) => chronologicalMatchOrder(b, a));
   const opponentWins = ratingEligible.filter((row) => row.match.result === "win").sort((a, b) => a.opponent - b.opponent);
   const opponentLosses = ratingEligible.filter((row) => row.match.result === "loss").sort((a, b) => b.opponent - a.opponent);
+  const ratedOpponentWins = opponentRated.filter((row) => row.match.result === "win").sort((a, b) => a.opponent - b.opponent);
+  const ratedOpponentLosses = opponentRated.filter((row) => row.match.result === "loss").sort((a, b) => b.opponent - a.opponent);
   const bestComebacks = comebackWinners.map((match) => {
     const sequence = setSequence(match); let wins = 0; let losses = 0; let maxBehind = 0;
     for (const result of sequence) { if (result === "win") wins++; else losses++; maxBehind = Math.max(maxBehind, losses - wins); }
     return { match, setsBehind: maxBehind, reason: `Lost Set 1 · won ${sequence.filter((result) => result === "win").length}–${sequence.filter((result) => result === "loss").length} in sets` };
-  }).sort((a, b) => b.setsBehind - a.setsBehind || (averageOpponentWtn(a.match) ?? 99) - (averageOpponentWtn(b.match) ?? 99) || (a.match.date ?? "").localeCompare(b.match.date ?? "")).slice(0, 5);
+  }).sort((a, b) => b.setsBehind - a.setsBehind || (averageOpponentWtn(a.match) ?? 99) - (averageOpponentWtn(b.match) ?? 99) || chronologicalMatchOrder(a.match, b.match)).slice(0, 5);
 
   const report: AnalyticsReport = {
     coverage: coverage(matches), competitiveMatches: competitive,
@@ -184,8 +195,8 @@ export function calculateAnalytics(matches: NormalizedMatch[]): AnalyticsReport 
     finalSetTiebreaks: record(finalTbMatches, total), closeMatches: record(close, total),
     comebackFirstSet: record(lostFirst, total), comebackTwoSets: record(trailedTwo, total), trailedOneSetWins: record(trailedOne, total), lostSecondThenWon: record(splitFirstTwo, total),
     afterWinningFirst: record(wonFirst, total), lostAfterTwoSetLead: record(ledTwo, total), afterSplitFirstTwo: record(splitFirstTwo, total),
-    straightSetWins: metric(straightWins.length, straightWins.map((match) => match.id), total, straightWins.length, scored.length),
-    straightSetLosses: metric(straightLosses.length, straightLosses.map((match) => match.id), total, straightLosses.length, scored.length),
+    straightSetWins: metric(normalScored.length ? straightWins.length : null, straightWins.map((match) => match.id), total, straightWins.length, normalScored.length),
+    straightSetLosses: metric(normalScored.length ? straightLosses.length : null, straightLosses.map((match) => match.id), total, straightLosses.length, normalScored.length),
     averageSetsWon: metric(normalScored.length ? setsWon / normalScored.length : null, scoredIds, total, setsWon, normalScored.length),
     averageSetsLost: metric(normalScored.length ? setsLost / normalScored.length : null, scoredIds, total, setsLost, normalScored.length),
     averageGamesWon: metric(normalScored.length ? gamesWon / normalScored.length : null, scoredIds, total, gamesWon, normalScored.length),
@@ -194,11 +205,11 @@ export function calculateAnalytics(matches: NormalizedMatch[]): AnalyticsReport 
     strongerOpponents: record(stronger, total), similarOpponents: record(similar, total), weakerOpponents: record(weaker, total),
     upsetWins: metric(stronger.filter((match) => match.result === "win").length, stronger.filter((match) => match.result === "win").map((match) => match.id), total),
     favouriteLosses: metric(weaker.filter((match) => match.result === "loss").length, weaker.filter((match) => match.result === "loss").map((match) => match.id), total),
-    averageOpponentWtn: metric(ratingEligible.length ? ratingEligible.reduce((sum, row) => sum + row.opponent, 0) / ratingEligible.length : null, ratingEligible.map((row) => row.match.id), total),
+    averageOpponentWtn: metric(opponentRated.length ? opponentRated.reduce((sum, row) => sum + row.opponent, 0) / opponentRated.length : null, opponentRated.map((row) => row.match.id), total),
     averageWtnDifferenceWins: metric(opponentWins.length ? opponentWins.reduce((sum, row) => sum + row.difference, 0) / opponentWins.length : null, opponentWins.map((row) => row.match.id), total),
     averageWtnDifferenceLosses: metric(opponentLosses.length ? opponentLosses.reduce((sum, row) => sum + row.difference, 0) / opponentLosses.length : null, opponentLosses.map((row) => row.match.id), total),
-    strongestOpponentBeaten: opponentWins[0] ? { name: opponentWins[0].match.opponents.map((opponent) => opponent.name).join(" / "), wtn: opponentWins[0].opponent, matchId: opponentWins[0].match.id } : null,
-    weakestRatedLoss: opponentLosses[0] ? { name: opponentLosses[0].match.opponents.map((opponent) => opponent.name).join(" / "), wtn: opponentLosses[0].opponent, matchId: opponentLosses[0].match.id } : null,
+    strongestOpponentBeaten: ratedOpponentWins[0] ? { name: ratedOpponentWins[0].match.opponents.map((opponent) => opponent.name).join(" / "), wtn: ratedOpponentWins[0].opponent, matchId: ratedOpponentWins[0].match.id } : null,
+    weakestRatedLoss: ratedOpponentLosses[0] ? { name: ratedOpponentLosses[0].match.opponents.map((opponent) => opponent.name).join(" / "), wtn: ratedOpponentLosses[0].opponent, matchId: ratedOpponentLosses[0].match.id } : null,
     patterns, ratingBands, trends: monthlyTrends(matches), recentForm: sortedRecent.slice(0, 5).map((match) => match.result as "win" | "loss"),
     currentStreak: streak.current, longestWinStreak: streak.longestWin, longestLossStreak: streak.longestLoss, partners, bestComebacks, insights: [],
   };
@@ -207,21 +218,21 @@ export function calculateAnalytics(matches: NormalizedMatch[]): AnalyticsReport 
   const overallWinRate = report.matchRecord.value;
   if (overallWinRate != null && isUsefulInsight(report.comebackFirstSet, overallWinRate)) insights.push({
     label: "Opening-set response",
-    text: `Won ${insightRate(report.comebackFirstSet.value)} of matches after dropping the opening set${overallComparison(report.comebackFirstSet.value, overallWinRate)}`,
+    text: `Won ${insightRate(report.comebackFirstSet.value)} of matches after dropping the opening set${percentagePointComparison(report.comebackFirstSet.value, overallWinRate)}`,
     sampleSize: report.comebackFirstSet.eligibleMatchIds.length,
     matchIds: report.comebackFirstSet.eligibleMatchIds,
     evidenceReason: "Lost the first completed normal set",
   });
   if (overallWinRate != null && isUsefulInsight(report.deciding, overallWinRate)) insights.push({
     label: "Deciding matches",
-    text: `Won ${insightRate(report.deciding.value)} of deciding-set matches${overallComparison(report.deciding.value, overallWinRate)}`,
+    text: `Won ${insightRate(report.deciding.value)} of deciding-set matches${percentagePointComparison(report.deciding.value, overallWinRate)}`,
     sampleSize: report.deciding.eligibleMatchIds.length,
     matchIds: report.deciding.eligibleMatchIds,
     evidenceReason: "Both teams were one set from winning before the final set",
   });
   if (overallWinRate != null && isUsefulInsight(report.strongerOpponents, overallWinRate)) insights.push({
     label: "Opponent challenge",
-    text: `Won ${insightRate(report.strongerOpponents.value)} of matches against stronger-rated opponents${overallComparison(report.strongerOpponents.value, overallWinRate)}`,
+    text: `Won ${insightRate(report.strongerOpponents.value)} of matches against stronger-rated opponents${percentagePointComparison(report.strongerOpponents.value, overallWinRate)}`,
     sampleSize: report.strongerOpponents.eligibleMatchIds.length,
     matchIds: report.strongerOpponents.eligibleMatchIds,
     evidenceReason: `Opponent entered at least ${SIMILAR_WTN_BAND.toFixed(1)} WTN stronger`,
@@ -229,7 +240,7 @@ export function calculateAnalytics(matches: NormalizedMatch[]): AnalyticsReport 
   const overallSetWinRate = report.sets.value;
   if (insights.length < 3 && overallSetWinRate != null && isUsefulInsight(report.normalTiebreaks, overallSetWinRate)) insights.push({
     label: "Tiebreak execution",
-    text: `Won ${insightRate(report.normalTiebreaks.value)} of normal-set tiebreaks${overallComparison(report.normalTiebreaks.value, overallSetWinRate, "the overall set win rate")}`,
+    text: `Won ${insightRate(report.normalTiebreaks.value)} of normal-set tiebreaks${percentagePointComparison(report.normalTiebreaks.value, overallSetWinRate, "the overall set win rate")}`,
     sampleSize: report.normalTiebreaks.eligibleMatchIds.length,
     matchIds: report.normalTiebreaks.eligibleMatchIds,
     evidenceReason: "Match included at least one normal-set tiebreak",

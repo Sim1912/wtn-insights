@@ -25,11 +25,11 @@ export function MatchHistory({ matches, player, loading = false }: { matches: No
   const visibleMatches = useMemo(() => filterAndSortMatches(matches, filters), [matches, filters]);
   const resetFilters = () => { setFilters(DEFAULT_FILTERS); setExpandedId(null); };
   const countLabel = visibleMatches.length === matches.length
-    ? `${visibleMatches.length} returned ${visibleMatches.length === 1 ? "match" : "matches"}`
-    : `${visibleMatches.length} of ${matches.length} returned matches`;
+    ? `${visibleMatches.length} ${visibleMatches.length === 1 ? "match" : "matches"}`
+    : `${visibleMatches.length} of ${matches.length} ${matches.length === 1 ? "match" : "matches"}`;
 
   if (loading && !matches.length) return <MatchHistorySkeleton />;
-  if (!matches.length) return <div className="match-empty"><strong>No match history returned</strong><p>Rating data may still be available for this player.</p></div>;
+  if (!matches.length) return <div className="match-empty"><strong>No match history available</strong><p>Rating data may still be available for this player.</p></div>;
 
   return <div className="match-history">
     <section className="match-intro">

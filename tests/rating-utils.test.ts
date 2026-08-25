@@ -18,3 +18,17 @@ test("supports every rating period selector", () => {
 test("uses a padded non-misleading rating domain", () => {
   assert.deepEqual(ratingDomain([point("2026-01-01T00:00:00.000Z", 26.9)]), [26.5, 27.3]);
 });
+
+test("clamps calendar-month cutoffs at the end of shorter months", () => {
+  const monthEnd = [
+    point("2026-02-28T00:00:00.000Z", 21),
+    point("2026-03-31T23:00:00.000Z", 20),
+  ];
+  assert.deepEqual(filterRatingPeriod(monthEnd, "1m").map((entry) => entry.date), monthEnd.map((entry) => entry.date));
+
+  const sixMonths = [
+    point("2026-02-28T00:00:00.000Z", 21),
+    point("2026-08-31T00:00:00.000Z", 20),
+  ];
+  assert.deepEqual(filterRatingPeriod(sixMonths, "6m").map((entry) => entry.date), sixMonths.map((entry) => entry.date));
+});

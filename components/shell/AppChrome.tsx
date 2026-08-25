@@ -98,7 +98,7 @@ function CourtThemeSelector() {
     aria-checked={selectedTheme === "clay"}
     aria-label={`Court theme: ${selectedTheme}. Switch to ${nextTheme}.`}
     aria-busy={pendingTheme ? "true" : undefined}
-    disabled={pendingTheme != null}
+    aria-disabled={pendingTheme ? "true" : undefined}
     onClick={() => selectTheme(nextTheme)}
   >
     <span className="theme-selector-indicator" aria-hidden="true" />
@@ -107,9 +107,13 @@ function CourtThemeSelector() {
   </button>;
 }
 
-const updatedDate = (value?: string | null) => value
-  ? new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value))
-  : null;
+const updatedDateFormatter = new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric" });
+
+const updatedDate = (value?: string | null) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : updatedDateFormatter.format(date);
+};
 
 export function MainNavigation({ current, playerId, loading, onPlayerIdChange, onSubmit }: { current: Page; playerId: string; loading: boolean; onPlayerIdChange: (value: string) => void; onSubmit: (event: FormEvent) => void }) {
   const encoded = encodeURIComponent(playerId);
@@ -134,8 +138,11 @@ export function MainNavigation({ current, playerId, loading, onPlayerIdChange, o
 
 export function PlayerContext({ player, fallbackId, updatedAt }: { player: PlayerProfile | undefined; fallbackId: string; updatedAt?: string | null }) {
   const updated = updatedDate(updatedAt);
+  const playerName = player ? player.name?.trim() || "Player unavailable" : null;
+  const country = player?.country?.trim() || "Country unavailable";
+  const tennisId = player?.id?.trim() || fallbackId.trim().toUpperCase();
   return <header className="player-context shell" id="top">
-    <h1>{player?.name ?? <span className="context-skeleton" />}</h1>
-    <p><span>{player?.country ?? "WTN player"}</span><span aria-hidden="true"> · </span><span>Tennis ID {player?.id ?? fallbackId.toUpperCase()}</span>{updated ? <><span aria-hidden="true"> · </span><span>Updated {updated}</span></> : null}</p>
+    <h1>{playerName ?? <span className="context-skeleton" />}</h1>
+    <p>{player ? <><span>{country}</span><span aria-hidden="true"> · </span><span>{tennisId ? `Tennis ID ${tennisId}` : "Tennis ID unavailable"}</span><span aria-hidden="true"> · </span><span>{updated ? `Updated ${updated}` : "Last update unavailable"}</span></> : <><span>Loading player details</span><span aria-hidden="true"> · </span><span>{tennisId ? `Tennis ID ${tennisId}` : "Tennis ID unavailable"}</span></>}</p>
   </header>;
 }

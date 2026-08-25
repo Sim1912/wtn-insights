@@ -54,8 +54,9 @@ test("renders the Overview route through the Next production server", async () =
   const html = await getHtml("/");
   assert.match(html, /<title>WTN Insights — Ratings, matches and analytics<\/title>/i);
   assert.match(html, /Load another Tennis ID/i);
-  assert.match(html, /Loading player ratings/i);
+  assert.match(html, /Loading player(?: details|…)/i);
   assert.match(html, /href="\/\?tennisId=DEMO"/i);
+  assert.match(html, /<footer[^>]*class="product-footer"[^>]*>[\s\S]*Independent prototype\. Not affiliated with or endorsed by the ITF or World Tennis Number\.[\s\S]*<\/footer>/i);
 });
 
 test("renders Matches and Analytics with their active destinations", async () => {

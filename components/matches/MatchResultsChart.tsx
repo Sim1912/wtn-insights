@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { monthlyResults, type MonthlyResult } from "@/lib/wtn/match-utils";
 import type { NormalizedMatch } from "@/lib/wtn/types";
@@ -25,17 +25,21 @@ function ResultsTooltip({ active, payload }: { active?: boolean; payload?: Reado
 
 export function MatchResultsChart({ matches }: { matches: NormalizedMatch[] }) {
   const reducedMotion = useReducedMotion();
+  const descriptionId = useId();
   const data = useMemo(() => monthlyResults(matches), [matches]);
   if (matches.filter((match) => match.date && match.result !== "unknown").length < 3 || data.length < 2) return null;
   const spansYears = new Set(data.map((point) => point.month.slice(0, 4))).size > 1;
   const range = `${monthFormatter.format(monthDate(data[0].month))}–${monthFormatter.format(monthDate(data[data.length - 1].month))}`;
+  const wins = data.reduce((total, point) => total + point.wins, 0);
+  const losses = data.reduce((total, point) => total + point.losses, 0);
 
   return <details className="match-trends">
     <summary className="match-trends-toggle">
-      <span><strong>Results over time</strong><small>{range}</small></span>
+      <span><strong>Match results</strong><small>{range}</small></span>
       <span className="match-trends-action">Recorded wins and losses <b aria-hidden="true">▾</b></span>
     </summary>
-    <section className="results-chart-panel" aria-label={`Filtered wins and losses from ${range}`}>
+    <section className="results-chart-panel" aria-label={`Filtered wins and losses from ${range}`} aria-describedby={descriptionId}>
+      <p className="sr-only" id={descriptionId}>{`${wins} ${wins === 1 ? "win" : "wins"} and ${losses} ${losses === 1 ? "loss" : "losses"} across ${wins + losses} recorded ${wins + losses === 1 ? "match" : "matches"}, ordered from oldest to newest.`}</p>
       <header>
         <div><h3>Wins and losses over time</h3><p>Oldest to newest</p></div>
         <div className="results-legend" role="list" aria-label="Chart legend">
