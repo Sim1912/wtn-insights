@@ -2599,7 +2599,10 @@ button, a, input, select {
 
 /* On desktop, this is a true four-column scorecard; the grid does not break after row one. */
 @media (min-width: 761px) {
-  .performance-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .performance-summary {
+    --performance-divider: var(--border-dark);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
   .performance-primary,
   .performance-scoring,
   .performance-secondary { display: contents; }
@@ -2612,15 +2615,21 @@ button, a, input, select {
   .form-summary { grid-column: 3; grid-row: 2; }
   .form-streak { grid-column: 4; grid-row: 2; }
   .performance-summary .analytics-metric,
-  .form-summary,
-  .form-streak {
+  .performance-summary > .form-summary,
+  .performance-summary > .form-streak {
     min-height: 104px;
-    border-right: 1px solid var(--border-dark);
-    border-bottom: 1px solid var(--border-dark);
+    border: 0;
+    border-right: 1px solid var(--performance-divider);
+    border-bottom: 1px solid var(--performance-divider);
     background: transparent;
   }
+  .performance-primary .analytics-metric:last-child,
+  .performance-scoring .analytics-metric:last-child {
+    border-right: 1px solid var(--performance-divider);
+  }
   .performance-secondary .analytics-metric:nth-child(2),
-  .form-streak { border-right: 0; }
+  .performance-summary > .form-streak { border-right: 0; }
+  .performance-summary > .performance-trend { border-top: 0; }
 }
 
 .form-summary,
