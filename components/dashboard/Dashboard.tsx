@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { MatchHistory, MatchHistorySkeleton } from "@/components/matches/MatchHistory";
 import { RatingChart } from "@/components/ratings/RatingChart";
 import { MainNavigation, PlayerContext } from "@/components/shell/AppChrome";
-import { AnimatedNumber, ScrollReveal } from "@/components/ui/Motion";
+import { AnimatedNumber } from "@/components/ui/Motion";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { requestPlayer } from "@/lib/wtn/client";
 import { DEFAULT_TENNIS_ID, normalizeTennisId } from "@/lib/wtn/player-id";
@@ -15,7 +15,7 @@ function RatingCard({ title, value, change, confidence, selected, onSelect }: { 
   const accessibleLabel = `${title}: ${value == null ? "unavailable" : value.toFixed(2)}.${changeText ? ` Latest change ${changeText}.` : ""}${confidence == null ? "" : ` ${confidence}% confidence.`} Show ${title} history.`;
   return <button type="button" className={`rating-card ${selected ? "selected" : ""}`} aria-label={accessibleLabel} aria-pressed={selected} aria-controls="rating-history-chart" onClick={onSelect}>
     <span className="rating-card-title">{title}</span>
-    <strong className="rating-number">{value == null ? "—" : <AnimatedNumber value={value} decimals={2} from={change == null ? value + .1 : value - change} />}</strong>
+    <strong className="rating-number">{value == null ? "—" : <AnimatedNumber value={value} decimals={2} />}</strong>
     <span className="rating-card-meta">
       {change != null && <b className={change <= 0 ? "positive" : "negative"}>{change > 0 ? "↑" : change < 0 ? "↓" : "→"} {changeText}</b>}
       {confidence != null && <small>{confidence}% confidence</small>}
@@ -24,7 +24,7 @@ function RatingCard({ title, value, change, confidence, selected, onSelect }: { 
 }
 
 function OverviewSkeleton() {
-  return <div className="overview-skeleton" aria-label="Loading player ratings">
+  return <div className="overview-skeleton" role="status" aria-label="Loading player ratings">
     <div className="rating-skeleton"><i /><span /><span /></div><div className="rating-skeleton"><i /><span /><span /></div>
     <div className="chart-skeleton"><i /><span /></div>
   </div>;
@@ -106,12 +106,12 @@ export function Dashboard({ initialTab, initialPlayerId = DEFAULT_TENNIS_ID }: {
     {!data && status === "error" ? <section className="load-error shell"><strong>Player data could not be loaded.</strong><p>{message}</p><button type="button" onClick={() => void loadPlayer(playerId)}>Try again</button></section>
       : initialTab === "overview" ? <div className="shell content overview-content">
         {data && ratings && player ? <>
-          <ScrollReveal><section className="rating-grid" aria-label="Current ratings">
+          <section className="rating-grid" aria-label="Current ratings">
               <RatingCard title="Singles WTN" value={ratings.singles} change={ratings.singlesChange} confidence={ratings.singlesConfidence} selected={series === "singles"} onSelect={() => setSeries("singles")} />
               <RatingCard title="Doubles WTN" value={ratings.doubles} change={ratings.doublesChange} confidence={ratings.doublesConfidence} selected={series === "doubles"} onSelect={() => setSeries("doubles")} />
-          </section></ScrollReveal>
-          <ScrollReveal delay={60}><RatingChart history={ratings.history} series={series} onSeriesChange={setSeries} /></ScrollReveal>
-          <ScrollReveal delay={120}><RecentActivity matches={data.matches} playerId={player.id} /></ScrollReveal>
+          </section>
+          <RatingChart history={ratings.history} series={series} onSeriesChange={setSeries} />
+          <RecentActivity matches={data.matches} playerId={player.id} />
         </> : <OverviewSkeleton />}
       </div> : <div className="shell content">{data && player ? <MatchHistory key={player.id} matches={data.matches} player={player} loading={status === "loading"} /> : <MatchHistorySkeleton />}</div>}
   </main>;

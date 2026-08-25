@@ -2,7 +2,7 @@ import { chronologicalMatchOrder, currentSeasonSnapshot } from "@/lib/wtn/match-
 import { renderScore } from "@/lib/wtn/score";
 import type { NormalizedMatch } from "@/lib/wtn/types";
 
-const dateFormatter = new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short" });
+const dateFormatter = new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric" });
 
 function opponentLabel(match: NormalizedMatch) {
   const names = match.opponents
@@ -33,7 +33,6 @@ export function RecentActivity({ matches, playerId }: { matches: NormalizedMatch
   return <section className="recent-activity" aria-labelledby="recent-activity-title">
     <header className="recent-activity-heading">
       <div><h2 id="recent-activity-title">Recent activity</h2><p>Latest recorded results and season context</p></div>
-      <span>{seasonLabel}</span>
     </header>
     <div className="recent-activity-grid">
       <section className="recent-matches" aria-labelledby="recent-matches-title">

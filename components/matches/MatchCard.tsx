@@ -45,7 +45,7 @@ function RatingCell({ values, players, strength }: { values: Array<string | null
   return <td className="wtn-cell" data-team-size={entries.length} data-strength={strength === "stronger" ? "stronger" : undefined}>
     <span className="wtn-values">{entries.map((name, index) => {
       const value = values[index] ?? null;
-      return <span key={`${name}-${index}`} aria-label={`${name} WTN before match ${value ?? "unavailable"}`}>{value ?? "—"}</span>;
+      return <span key={`${name}-${index}`}>{value ?? "—"}</span>;
     })}</span>
     {strength === "stronger" ? <small>Stronger</small> : null}
   </td>;

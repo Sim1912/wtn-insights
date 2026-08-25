@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { monthlyResults, type MonthlyResult } from "@/lib/wtn/match-utils";
 import type { NormalizedMatch } from "@/lib/wtn/types";
-import { ChartEntrance, useReducedMotion } from "@/components/ui/Motion";
+import { useReducedMotion } from "@/components/ui/Motion";
 
 const monthFormatter = new Intl.DateTimeFormat("en-NZ", { month: "short", year: "numeric", timeZone: "UTC" });
 const shortMonthFormatter = new Intl.DateTimeFormat("en-NZ", { month: "short", timeZone: "UTC" });
@@ -44,16 +44,16 @@ export function MatchResultsChart({ matches }: { matches: NormalizedMatch[] }) {
         </div>
       </header>
       <div className="results-chart-frame">
-        <ChartEntrance><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={148}>
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={148}>
           <BarChart data={data} accessibilityLayer margin={{ top: 8, right: 6, bottom: 0, left: -24 }} barCategoryGap="38%" barGap={2}>
             <CartesianGrid vertical={false} stroke="var(--line-soft)" strokeDasharray="3 7" />
-            <XAxis dataKey="month" tickFormatter={(value) => (spansYears ? shortMonthYearFormatter : shortMonthFormatter).format(monthDate(value))} minTickGap={28} tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-secondary)", fontSize: 10 }} />
-            <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-secondary)", fontSize: 10 }} />
+            <XAxis dataKey="month" tickFormatter={(value) => (spansYears ? shortMonthYearFormatter : shortMonthFormatter).format(monthDate(value))} minTickGap={28} tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+            <YAxis allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
             <Tooltip content={(props) => <ResultsTooltip active={props.active} payload={props.payload as unknown as ReadonlyArray<{ payload?: MonthlyResult }>} />} isAnimationActive={!reducedMotion} allowEscapeViewBox={{ x: false, y: false }} cursor={{ fill: "var(--color-surface-subtle)" }} />
-            <Bar dataKey="wins" name="Wins" fill="var(--color-chart-primary)" radius={[3, 3, 0, 0]} maxBarSize={13} isAnimationActive={!reducedMotion} animationDuration={520} />
-            <Bar dataKey="losses" name="Losses" fill="var(--color-chart-loss)" radius={[3, 3, 0, 0]} maxBarSize={13} isAnimationActive={!reducedMotion} animationDuration={520} />
+            <Bar dataKey="wins" name="Wins" fill="var(--color-chart-primary)" radius={[3, 3, 0, 0]} maxBarSize={13} isAnimationActive={false} />
+            <Bar dataKey="losses" name="Losses" fill="var(--color-chart-loss)" radius={[3, 3, 0, 0]} maxBarSize={13} isAnimationActive={false} />
           </BarChart>
-        </ResponsiveContainer></ChartEntrance>
+        </ResponsiveContainer>
       </div>
     </section>
   </details>;

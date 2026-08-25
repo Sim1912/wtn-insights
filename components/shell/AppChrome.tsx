@@ -116,7 +116,7 @@ export function MainNavigation({ current, playerId, loading, onPlayerIdChange, o
   return <nav className="main-navigation">
     <div className="navigation-inner">
       <a className="brand" href={`/?tennisId=${encoded}`} aria-label="WTN Insights home"><span className="brand-mark" aria-hidden="true">W</span><b className="brand-copy">WTN Insights</b></a>
-      <div className="navlinks" aria-label="Dashboard sections">
+      <div className="navlinks" role="group" aria-label="Dashboard sections">
         <a aria-current={current === "overview" ? "page" : undefined} className={current === "overview" ? "active" : ""} href={`/?tennisId=${encoded}`}>Overview</a>
         <a aria-current={current === "matches" ? "page" : undefined} className={current === "matches" ? "active" : ""} href={`/matches?tennisId=${encoded}`}>Matches</a>
         <a aria-current={current === "analytics" ? "page" : undefined} className={current === "analytics" ? "active" : ""} href={`/analytics?tennisId=${encoded}`}>Analytics</a>

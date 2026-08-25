@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { filterRatingPeriod, ratingDomain, type ChartRatingPoint, type RatingPeriod } from "@/lib/wtn/rating-utils";
 import type { RatingPoint } from "@/lib/wtn/types";
-import { ChartEntrance, useReducedMotion } from "@/components/ui/Motion";
+import { useReducedMotion } from "@/components/ui/Motion";
 
 type Series = "singles" | "doubles";
 type TooltipEntry = { payload?: ChartRatingPoint };
@@ -77,23 +77,23 @@ export function RatingChart({
       <div className="chart-trend"><span>Period change</span><strong className={trend == null ? "" : trend <= 0 ? "positive" : "negative"}>{trend == null ? "—" : formatDirectionalChange(trend)}</strong></div>
     </header>
     <div className="chart-controls">
-      <div className="series-switch" aria-label="Rating type">
+      <div className="series-switch" role="group" aria-label="Rating type">
         {(["singles", "doubles"] as const).map((value) => <button type="button" key={value} aria-pressed={series === value} aria-controls="rating-history-chart" className={series === value ? "active" : ""} onClick={() => onSeriesChange(value)}>{value === "singles" ? "Singles" : "Doubles"}</button>)}
       </div>
-      <div className="period-switch" aria-label="Rating period">
+      <div className="period-switch" role="group" aria-label="Rating period">
         {periodLabels.map(([value, label]) => <button key={value} type="button" aria-pressed={period === value} className={period === value ? "active" : ""} onClick={() => setPeriod(value)}>{label}</button>)}
       </div>
     </div>
     <div className="chart-frame">
-      {visiblePoints.length ? <ChartEntrance><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
+      {visiblePoints.length ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
         <LineChart data={chartPoints} accessibilityLayer margin={{ top: 20, right: 18, bottom: 3, left: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--rating-chart-grid-on-court)" strokeDasharray="3 7" />
           <XAxis dataKey="timestamp" type="number" domain={["dataMin", "dataMax"]} scale="time" tickFormatter={(value) => axisDateFormatter.format(new Date(value))} tickLine={false} axisLine={false} minTickGap={52} tick={{ fill: "var(--rating-chart-axis-on-court)", fontSize: 11 }} dy={9} />
           <YAxis reversed domain={domain} width={46} tickCount={5} tickFormatter={(value: number) => value.toFixed(1)} tickLine={false} axisLine={false} tick={{ fill: "var(--rating-chart-axis-on-court)", fontSize: 11 }} />
           <Tooltip content={(props) => <RatingTooltip active={props.active} payload={props.payload as ReadonlyArray<TooltipEntry>} series={series} />} isAnimationActive={!reducedMotion} allowEscapeViewBox={{ x: false, y: false }} reverseDirection={{ x: true, y: false }} cursor={{ stroke: "var(--chart-cursor-on-court)", strokeDasharray: "3 4" }} />
-          <Line name={`${series} WTN`} dataKey="value" type="linear" stroke={color} strokeWidth={3} connectNulls isAnimationActive={!reducedMotion} animationDuration={680} dot={(props) => <RatingDot {...props} latestDate={latestDate} color={color} />} activeDot={{ r: 6, stroke: "var(--chart-active-dot-ring)", strokeWidth: 2, fill: color }} />
+          <Line name={`${series} WTN`} dataKey="value" type="linear" stroke={color} strokeWidth={3} connectNulls isAnimationActive={false} dot={(props) => <RatingDot {...props} latestDate={latestDate} color={color} />} activeDot={{ r: 6, stroke: "var(--chart-active-dot-ring)", strokeWidth: 2, fill: color }} />
         </LineChart>
-      </ResponsiveContainer></ChartEntrance> : <div className="chart-empty">No rating updates in this period.</div>}
+      </ResponsiveContainer> : <div className="chart-empty">No rating updates in this period.</div>}
     </div>
   </section>;
 }

@@ -26,10 +26,10 @@ export function MatchSummary({ matches }: { matches: NormalizedMatch[] }) {
 
   return <section className="summary-band" aria-label="Filtered match summary">
     <div className="summary-primary">
-      <div className="summary-record"><span>Recorded results</span><strong>{record(decided)}</strong><small>{decided.length ? `${matchCount(decided.length)} with a known result` : "No decided matches"}</small></div>
+      <div className="summary-record"><span>Match record</span><strong>{record(decided)}</strong><small>{decided.length ? `${matchCount(decided.length)} with a known result` : "No decided matches"}</small></div>
       <div className="summary-win-rate"><span>Win rate</span><strong>{decided.length ? `${Math.round((wins / decided.length) * 100)}%` : "—"}</strong><small>{decided.length ? `${wins} of ${matchCount(decided.length)} won` : "No decided matches"}</small></div>
     </div>
-    <div className="summary-secondary" aria-label="Record by match context">
+    <div className="summary-secondary" role="group" aria-label="Record by match context">
       <div><span>Singles</span><strong>{record(singles)}</strong><small>{matchCount(singles.length)}</small></div>
       <div><span>Doubles</span><strong>{record(doubles)}</strong><small>{matchCount(doubles.length)}</small></div>
       <div><span>Against stronger</span><strong>{record(stronger)}</strong><small>{matchCount(stronger.length)}</small></div>
@@ -38,7 +38,7 @@ export function MatchSummary({ matches }: { matches: NormalizedMatch[] }) {
       <div className="summary-form-heading"><span>Current form</span><small>Most recent first</small></div>
       <div className="form-sequence" role="list" aria-label="Current form, newest match first">{form.length ? form.map((match) => {
         const result = match.result === "win" ? "Win" : "Loss";
-        const date = match.date ? dateFormatter.format(new Date(match.date)) : "date unavailable";
+        const date = match.date ? dateFormatter.format(new Date(match.date)) : "Date unavailable";
         return <b key={match.id} role="listitem" className={match.result} aria-label={`${result}, ${date}`} title={`${result} · ${date}`}>{match.result === "win" ? "W" : "L"}</b>;
       }) : <strong>—</strong>}</div>
     </div>

@@ -12,10 +12,10 @@ import { averageOpponentWtn } from "@/lib/wtn/match-utils";
 import { renderScore } from "@/lib/wtn/score";
 import type { NormalizedMatch, WtnApiResponse } from "@/lib/wtn/types";
 import { MainNavigation, PlayerContext } from "@/components/shell/AppChrome";
-import { AnimatedNumber, ChartEntrance, RevealScope, useReducedMotion } from "@/components/ui/Motion";
+import { AnimatedNumber, useReducedMotion } from "@/components/ui/Motion";
 
 const dateFormatter = new Intl.DateTimeFormat("en-NZ", { day: "numeric", month: "short", year: "numeric" });
-const monthFormatter = new Intl.DateTimeFormat("en-NZ", { month: "short", year: "2-digit", timeZone: "UTC" });
+const monthFormatter = new Intl.DateTimeFormat("en-NZ", { month: "short", year: "numeric", timeZone: "UTC" });
 const periods: Array<[AnalyticsPeriod, string]> = [["1m", "1M"], ["3m", "3M"], ["6m", "6M"], ["1y", "1Y"], ["all", "All"], ["custom", "Custom"]];
 function replacePlayerQuery(tennisId: string) {
   const url = new URL(window.location.href);
@@ -30,7 +30,7 @@ const trendOptions: Array<[TrendMetric, string]> = [["winRate", "Win rate"], ["m
 const pct = (value: number | null) => value == null ? "—" : `${Math.round(value * 100)}%`;
 const decimal = (value: number | null) => value == null ? "—" : value.toFixed(1);
 const recordText = (result: RecordResult) => result.denominator ? `${result.wins}–${result.losses}` : "No eligible matches";
-const opponentNames = (match: NormalizedMatch) => match.opponents.map((opponent) => opponent.name).join(" / ") || "Unknown opponent";
+const opponentNames = (match: NormalizedMatch) => match.opponents.map((opponent) => opponent.name).join(" / ") || "Opponent unavailable";
 const matchCount = (count: number) => `${count} ${count === 1 ? "match" : "matches"}`;
 
 function Metric({ label, display, result, definition, supporting, className = "", animate = false, onExplore }: { label: string; display: string; result: MetricResult; definition: string; supporting?: string; className?: string; animate?: boolean; onExplore: () => void }) {
@@ -210,8 +210,8 @@ export function AnalyticsPage({ initialPlayerId = DEFAULT_TENNIS_ID }: { initial
     <PlayerContext player={data?.player} fallbackId={playerId} updatedAt={data?.ratings.updatedAt} />
 
     {status !== "live" && <div className={`status-banner ${status} shell`} role="status"><span />{message}{status === "error" && data && <small>Previous analytics remain visible.</small>}</div>}
-    {!data && status === "error" ? <section className="load-error shell"><strong>Analytics could not be loaded.</strong><p>{message}</p><button type="button" onClick={() => void load(playerId)}>Try again</button></section> : !data ? <div className="analytics-loading shell"><i /><i /><i /></div> : <RevealScope className="analytics-shell shell">
-      <section className="analytics-intro" data-reveal>
+    {!data && status === "error" ? <section className="load-error shell"><strong>Analytics could not be loaded.</strong><p>{message}</p><button type="button" onClick={() => void load(playerId)}>Try again</button></section> : !data ? <div className="analytics-loading shell" role="status" aria-label="Loading analytics"><i /><i /><i /></div> : <div className="analytics-shell shell">
+      <section className="analytics-intro">
         <header className="analytics-title">
           <div><h2>Analytics</h2><p className="analytics-context-line">{filtered.length} selected · {report.matchRecord.sampleSize} eligible completed · {report.coverage.completeScore} score-complete</p></div>
         </header>
@@ -223,20 +223,20 @@ export function AnalyticsPage({ initialPlayerId = DEFAULT_TENNIS_ID }: { initial
         </section>
       </section>
 
-      <section className="analytics-overview" aria-labelledby="performance-title" data-reveal>
+      <section className="analytics-overview" aria-labelledby="performance-title">
         <AnalyticsSectionHeading id="performance-title">Performance summary</AnalyticsSectionHeading>
         <div className="performance-summary">
           <div className="performance-primary">
             <Metric className="metric-record" label="Match record" display={recordText(report.matchRecord)} result={report.matchRecord} supporting={`${report.matchRecord.wins} of ${matchCount(report.matchRecord.sampleSize)} won`} definition="Official completed results; walkovers, defaults, retirements and unfinished matches are excluded." onExplore={() => explore("Match record", report.matchRecord, competitiveReason)} />
             <Metric className="metric-win-rate" label="Win rate" display={pct(report.matchRecord.value)} result={report.matchRecord} supporting={`${report.matchRecord.sampleSize} eligible completed · ${filtered.length - report.matchRecord.sampleSize} excluded`} definition="Official wins divided by completed competitive matches." animate onExplore={() => explore("Win rate", report.matchRecord, competitiveReason)} />
           </div>
-          <div className="performance-scoring" aria-label="Scoring comparison">
+          <div className="performance-scoring" role="group" aria-label="Scoring comparison">
             <Metric label="Sets won" display={pct(report.sets.value)} result={report.sets} supporting={`${report.sets.wins} of ${report.sets.denominator ?? 0} sets · ${matchCount(report.sets.sampleSize)}`} definition="Completed normal sets won. Match tiebreaks are reported separately." onExplore={() => explore("Sets analysed", report.sets, () => "Complete normal-set score available")} />
             <Metric label="Games won" display={pct(report.games.value)} result={report.games} supporting={`${report.games.wins} of ${report.games.denominator ?? 0} games · ${matchCount(report.games.sampleSize)}`} definition="Games won across completed normal sets. Tiebreak points and match-tiebreak points are excluded." onExplore={() => explore("Games analysed", report.games, () => "Complete normal-game score available")} />
           </div>
           <article className="performance-trend">
             <header><div><h3>Form over time</h3><p>Discrete monthly results</p></div><TrendMetricPicker value={trendMetric} onChange={setTrendMetric} /></header>
-            <div className="performance-trend-frame">{report.trends.length > 1 && hasTrendValues ? <ChartEntrance><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={190}><LineChart data={report.trends} accessibilityLayer margin={{ top: 12, right: 14, bottom: 2, left: 0 }}><CartesianGrid vertical={false} stroke="var(--analytics-chart-grid-on-court)" strokeDasharray="3 7" /><XAxis dataKey="month" tickFormatter={(value) => monthFormatter.format(new Date(`${value}-01T00:00:00Z`))} tickLine={false} axisLine={false} minTickGap={35} tick={{ fill: "var(--analytics-chart-axis-on-court)", fontSize: 10 }} /><YAxis domain={trendMetric === "matches" ? [0, "dataMax + 1"] : trendMetric === "averageOpponentWtn" ? ["auto", "auto"] : [0, 1]} ticks={trendMetric === "matches" || trendMetric === "averageOpponentWtn" ? undefined : [0, .25, .5, .75, 1]} tickFormatter={(value) => trendMetric === "matches" ? String(value) : trendMetric === "averageOpponentWtn" ? Number(value).toFixed(1) : `${value * 100}%`} width={42} tickLine={false} axisLine={false} tick={{ fill: "var(--analytics-chart-axis-on-court)", fontSize: 10 }} /><Tooltip content={(props) => <TrendTooltip active={props.active} payload={props.payload as ReadonlyArray<{ payload?: TrendPoint }>} metric={trendMetric} />} isAnimationActive={!reducedMotion} /><Line dataKey={trendMetric} name={trendLabel[trendMetric]} type="linear" connectNulls stroke={trendColor[trendMetric]} strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: "var(--court-panel)" }} activeDot={{ r: 6 }} isAnimationActive={!reducedMotion} animationDuration={620} /></LineChart></ResponsiveContainer></ChartEntrance> : <p className="analytics-empty">{report.trends.length <= 1 ? "Not enough dated months." : `No eligible ${trendLabel[trendMetric].toLowerCase()} data.`}</p>}</div>
+            <div className="performance-trend-frame">{report.trends.length > 1 && hasTrendValues ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={190}><LineChart data={report.trends} accessibilityLayer margin={{ top: 12, right: 14, bottom: 2, left: 0 }}><CartesianGrid vertical={false} stroke="var(--analytics-chart-grid-on-court)" strokeDasharray="3 7" /><XAxis dataKey="month" tickFormatter={(value) => monthFormatter.format(new Date(`${value}-01T00:00:00Z`))} tickLine={false} axisLine={false} minTickGap={35} tick={{ fill: "var(--analytics-chart-axis-on-court)", fontSize: 11 }} /><YAxis domain={trendMetric === "matches" ? [0, "dataMax + 1"] : trendMetric === "averageOpponentWtn" ? ["auto", "auto"] : [0, 1]} ticks={trendMetric === "matches" || trendMetric === "averageOpponentWtn" ? undefined : [0, .25, .5, .75, 1]} tickFormatter={(value) => trendMetric === "matches" ? String(value) : trendMetric === "averageOpponentWtn" ? Number(value).toFixed(1) : `${value * 100}%`} width={42} tickLine={false} axisLine={false} tick={{ fill: "var(--analytics-chart-axis-on-court)", fontSize: 11 }} /><Tooltip content={(props) => <TrendTooltip active={props.active} payload={props.payload as ReadonlyArray<{ payload?: TrendPoint }>} metric={trendMetric} />} isAnimationActive={!reducedMotion} /><Line dataKey={trendMetric} name={trendLabel[trendMetric]} type="linear" connectNulls stroke={trendColor[trendMetric]} strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: "var(--court-panel)" }} activeDot={{ r: 6 }} isAnimationActive={false} /></LineChart></ResponsiveContainer> : <p className="analytics-empty">{report.trends.length <= 1 ? "Not enough dated months." : `No eligible ${trendLabel[trendMetric].toLowerCase()} data.`}</p>}</div>
           </article>
           <div className="performance-secondary">
             <Metric label="Deciding-set matches" display={recordText(report.deciding)} result={report.deciding} supporting={`${matchCount(report.deciding.denominator ?? 0)} reached a decider`} definition="Final set or match tiebreak played with both teams one set from winning." onExplore={() => explore("Deciding-set matches", report.deciding, () => "Both teams were one set from winning before the final set")} />
@@ -244,7 +244,7 @@ export function AnalyticsPage({ initialPlayerId = DEFAULT_TENNIS_ID }: { initial
           </div>
           <div className="form-metric form-summary">
             <header><span>Current form</span><small>Most recent first</small></header>
-            <div aria-label="Recent form, newest match first">{report.recentForm.length ? report.recentForm.map((result, index) => <b key={index} className={result} aria-label={result === "win" ? "Win" : "Loss"}>{result === "win" ? "W" : "L"}</b>) : "—"}</div>
+            <div role="list" aria-label="Recent form, newest match first">{report.recentForm.length ? report.recentForm.map((result, index) => <b key={index} role="listitem" className={result} aria-label={result === "win" ? "Win" : "Loss"}>{result === "win" ? "W" : "L"}</b>) : "—"}</div>
             <p>{currentStreakText(report.currentStreak)}</p>
           </div>
           <div className="form-metric form-streak">
@@ -261,7 +261,7 @@ export function AnalyticsPage({ initialPlayerId = DEFAULT_TENNIS_ID }: { initial
         </aside>}
       </section>
 
-      <section className="analytics-section analytics-comebacks" aria-labelledby="comebacks-title" data-reveal>
+      <section className="analytics-section analytics-comebacks" aria-labelledby="comebacks-title">
         <AnalyticsSectionHeading id="comebacks-title">What happens after the opening set</AnalyticsSectionHeading>
         <div className="comeback-layout">
           <article className="comeback-feature comeback-summary">
@@ -286,7 +286,7 @@ export function AnalyticsPage({ initialPlayerId = DEFAULT_TENNIS_ID }: { initial
         <details className="analytics-method"><summary>Comeback methodology</summary><p>A first-set comeback requires a lost first completed normal set and an official match win. A two-set comeback requires a best-of-five match and a 0–2 set deficit. Match tiebreaks may decide the match, but final scores cannot prove an in-set comeback.</p></details>
       </section>
 
-      <section className="analytics-section analytics-scoring" aria-labelledby="scores-title" data-reveal>
+      <section className="analytics-section analytics-scoring" aria-labelledby="scores-title">
         <AnalyticsSectionHeading id="scores-title">How matches are being won and lost</AnalyticsSectionHeading>
         <div className="score-analysis-grid">
           <div className="score-totals">
@@ -299,7 +299,7 @@ export function AnalyticsPage({ initialPlayerId = DEFAULT_TENNIS_ID }: { initial
         <details className="analytics-method"><summary>Scoring coverage</summary><p>Each selected match appears once in Score patterns. Set and game totals use only completed normal sets from score-complete competitive matches; match-tiebreak points are excluded from game totals.</p></details>
       </section>
 
-      <section className="analytics-section analytics-pressure" aria-labelledby="pressure-title" data-reveal>
+      <section className="analytics-section analytics-pressure" aria-labelledby="pressure-title">
         <AnalyticsSectionHeading id="pressure-title">Deciders and tiebreaks</AnalyticsSectionHeading>
         <div className="pressure-grid">
           <RecordRow label="Deciding normal sets" result={report.decidingNormal} onExplore={() => explore("Deciding normal sets", report.decidingNormal, () => "Final normal set with both teams one set from winning")} />
@@ -314,7 +314,7 @@ export function AnalyticsPage({ initialPlayerId = DEFAULT_TENNIS_ID }: { initial
         <details className="analytics-method"><summary>Close-match definition</summary><p>A close match must reach a true deciding set. It qualifies when that decider is a normal tiebreak, a match tiebreak won by two points or fewer, or a normal set ending with a two-game margin at four games or higher (for example 6–4, 7–5 or 8–6).</p></details>
       </section>
 
-      <section className="analytics-section analytics-context" aria-labelledby="opponents-title" data-reveal>
+      <section className="analytics-section analytics-context" aria-labelledby="opponents-title">
         <AnalyticsSectionHeading id="opponents-title">Results in context</AnalyticsSectionHeading>
         <div className="opponent-highlights">
           <div><span>Average opponent WTN</span><strong>{report.averageOpponentWtn.value?.toFixed(2) ?? "—"}</strong><small>{report.averageOpponentWtn.sampleSize ? `${matchCount(report.averageOpponentWtn.sampleSize)} with full ratings` : "No eligible rated matches"}</small></div>
@@ -323,12 +323,12 @@ export function AnalyticsPage({ initialPlayerId = DEFAULT_TENNIS_ID }: { initial
           <div><span>Losses as favourite</span><strong>{report.weakerOpponents.denominator ? report.favouriteLosses.value ?? 0 : "—"}</strong><small>{report.weakerOpponents.denominator ? `${report.favouriteLosses.value ?? 0} of ${report.weakerOpponents.denominator} as stronger player` : "No weaker-opponent matches"}</small></div>
         </div>
         <div className="analytics-charts contextual-chart">
-          <article className="rating-band-panel"><header><div><h3>Results by rating difference</h3><p>Historical team-average WTN · lower is stronger</p></div><div className="results-legend context-legend" role="list" aria-label="Chart legend"><span role="listitem"><i className="wins" aria-hidden="true" />Wins</span><span role="listitem"><i className="losses" aria-hidden="true" />Losses</span></div></header><div className="analytics-chart-frame">{ratingBandSample ? <ChartEntrance><ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={220}><BarChart data={report.ratingBands} layout="vertical" accessibilityLayer margin={{ top: 4, right: 8, bottom: 4, left: 12 }}><CartesianGrid horizontal={false} stroke="var(--line-soft)" /><XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-secondary)", fontSize: 10 }} /><YAxis type="category" dataKey="label" width={128} tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-primary)", fontSize: 10 }} /><Tooltip contentStyle={{ backgroundColor: "var(--chart-tooltip-surface)", border: "1px solid var(--chart-tooltip-border)", borderRadius: "var(--chart-tooltip-radius)", boxShadow: "var(--chart-tooltip-shadow)" }} labelStyle={{ color: "var(--chart-tooltip-label)" }} cursor={{ fill: "var(--color-surface-subtle)" }} /><Bar dataKey="wins" name="Wins" stackId="record" fill="var(--color-chart-primary)" radius={[3, 0, 0, 3]} isAnimationActive={!reducedMotion} animationDuration={520} /><Bar dataKey="losses" name="Losses" stackId="record" fill="var(--color-chart-loss)" radius={[0, 3, 3, 0]} isAnimationActive={!reducedMotion} animationDuration={520} /></BarChart></ResponsiveContainer></ChartEntrance> : <p className="analytics-empty">No completed matches with full pre-match ratings.</p>}</div></article>
+          <article className="rating-band-panel"><header><div><h3>Results by rating difference</h3><p>Historical team-average WTN · lower is stronger</p></div><div className="results-legend context-legend" role="list" aria-label="Chart legend"><span role="listitem"><i className="wins" aria-hidden="true" />Wins</span><span role="listitem"><i className="losses" aria-hidden="true" />Losses</span></div></header><div className="analytics-chart-frame">{ratingBandSample ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={220}><BarChart data={report.ratingBands} layout="vertical" accessibilityLayer margin={{ top: 4, right: 8, bottom: 4, left: 12 }}><CartesianGrid horizontal={false} stroke="var(--line-soft)" /><XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} /><YAxis type="category" dataKey="label" width={128} tickLine={false} axisLine={false} tick={{ fill: "var(--color-text-primary)", fontSize: 11 }} /><Tooltip contentStyle={{ backgroundColor: "var(--chart-tooltip-surface)", border: "1px solid var(--chart-tooltip-border)", borderRadius: "var(--chart-tooltip-radius)", boxShadow: "var(--chart-tooltip-shadow)" }} labelStyle={{ color: "var(--chart-tooltip-label)" }} cursor={{ fill: "var(--color-surface-subtle)" }} isAnimationActive={!reducedMotion} /><Bar dataKey="wins" name="Wins" stackId="record" fill="var(--color-chart-primary)" radius={[3, 0, 0, 3]} isAnimationActive={false} /><Bar dataKey="losses" name="Losses" stackId="record" fill="var(--color-chart-loss)" radius={[0, 3, 3, 0]} isAnimationActive={false} /></BarChart></ResponsiveContainer> : <p className="analytics-empty">No completed matches with full pre-match ratings.</p>}</div></article>
         </div>
         {report.partners.length > 0 && <div className="partner-table"><h3><span>Doubles partners</span><small>{visiblePartners.length < report.partners.length ? `Top ${visiblePartners.length} of ${report.partners.length} · ${visiblePartnerMatchTotal} of ${partnerMatchTotal} eligible doubles matches shown` : `${matchCount(partnerMatchTotal)} across ${report.partners.length} ${report.partners.length === 1 ? "partner" : "partners"}`}</small></h3>{visiblePartners.map((partner) => <button key={partner.name} onClick={() => setExplorer({ title: `With ${partner.name}`, ids: partner.matchIds, reason: () => `Doubles match with ${partner.name}` })}><span>{partner.name}</span><strong>{partner.wins}–{partner.losses}</strong><small>{matchCount(partner.matchIds.length)}</small></button>)}</div>}
         <details className="analytics-method"><summary>Data availability and definitions</summary><p>Coverage for {matchCount(report.coverage.total)} in this selection — known winner: {report.coverage.knownWinner}; score-complete competitive: {report.coverage.completeScore}; usable normal-game data: {report.coverage.usableGames}; complete historical team ratings: {report.coverage.preMatchWtn}; tournament: {report.coverage.tournament}; surface: {report.coverage.surface}. Similar opponents are within {SIMILAR_WTN_BAND.toFixed(1)} WTN. Lower WTN means stronger. Doubles comparisons use both team averages and are omitted unless all four ratings exist.</p></details>
       </section>
-    </RevealScope>}
+    </div>}
     <EvidenceExplorer state={explorer} matches={allMatches} onClose={closeExplorer} />
   </main>;
 }

@@ -5,14 +5,13 @@ import { MatchCard } from "./MatchCard";
 import { MatchFilters } from "./MatchFilters";
 import { MatchResultsChart } from "./MatchResultsChart";
 import { MatchSummary } from "./MatchSummary";
-import { RevealScope } from "@/components/ui/Motion";
 
 function MatchSkeleton() {
   return <div className="match-card-skeleton" aria-hidden="true"><span /><div><i /><i /><i /></div></div>;
 }
 
 export function MatchHistorySkeleton() {
-  return <div className="match-history" aria-label="Loading match history">
+  return <div className="match-history" role="status" aria-label="Loading match history">
     <div className="match-heading skeleton-heading"><span /><i /></div>
     <div className="match-filter-skeleton" aria-hidden="true" />
     <MatchSkeleton /><MatchSkeleton /><MatchSkeleton />
@@ -32,16 +31,16 @@ export function MatchHistory({ matches, player, loading = false }: { matches: No
   if (loading && !matches.length) return <MatchHistorySkeleton />;
   if (!matches.length) return <div className="match-empty"><strong>No match history returned</strong><p>Rating data may still be available for this player.</p></div>;
 
-  return <RevealScope className="match-history">
-    <section className="match-intro" data-reveal>
+  return <div className="match-history">
+    <section className="match-intro">
       <header className="match-heading"><div><h2>Match history</h2><p aria-live="polite">{countLabel}</p></div></header>
       <MatchFilters filters={filters} tournaments={tournaments} onChange={(next) => { setFilters(next); setExpandedId(null); }} onReset={resetFilters} />
     </section>
-    <div data-reveal><MatchSummary matches={visibleMatches} /></div>
+    <div><MatchSummary matches={visibleMatches} /></div>
     <MatchResultsChart matches={visibleMatches} />
     <section className="match-list" aria-busy={loading} aria-label={`${visibleMatches.length} filtered ${visibleMatches.length === 1 ? "match" : "matches"}`}>
       {visibleMatches.length ? visibleMatches.map((match) => <div className="match-reveal" key={match.id}><MatchCard match={match} player={player} expanded={expandedId === match.id} onToggle={() => setExpandedId((current) => current === match.id ? null : match.id)} /></div>)
         : <div className="match-empty"><strong>No matches fit these filters</strong><p>Clear the filters to return to the full record.</p><button type="button" onClick={resetFilters}>Clear filters</button></div>}
     </section>
-  </RevealScope>;
+  </div>;
 }

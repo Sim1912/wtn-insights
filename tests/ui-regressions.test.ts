@@ -7,6 +7,9 @@ const overview = readFileSync(new URL("../components/dashboard/Dashboard.tsx", i
 const analyticsPage = readFileSync(new URL("../components/analytics/AnalyticsPage.tsx", import.meta.url), "utf8");
 const chart = readFileSync(new URL("../components/ratings/RatingChart.tsx", import.meta.url), "utf8");
 const analytics = readFileSync(new URL("../components/analytics/AnalyticsPage.tsx", import.meta.url), "utf8");
+const matches = readFileSync(new URL("../components/matches/MatchHistory.tsx", import.meta.url), "utf8");
+const matchChart = readFileSync(new URL("../components/matches/MatchResultsChart.tsx", import.meta.url), "utf8");
+const motion = readFileSync(new URL("../components/ui/Motion.tsx", import.meta.url), "utf8");
 
 test("homepage WTN values retain their dedicated large-number treatment", () => {
   assert.match(overview, /className="rating-number"/);
@@ -45,4 +48,12 @@ test("analytics evidence interactions retain keyboard context without hover tool
   assert.match(analytics, /returnFocus\.current\?\.focus\(\)/);
   assert.match(styles, /\.record-stack \.analytics-record-row:focus-visible[^}]*outline-offset:\s*-3px/s);
   assert.match(styles, /\.analytics-dates input[^}]*\.trend-panel select[^}]*\.pattern-list button[^}]*\.partner-table button[^}]*min-height:\s*44px/s);
+});
+
+test("data sections render immediately without scroll-reveal gates", () => {
+  for (const source of [overview, analytics, matches, chart, matchChart, motion]) {
+    assert.doesNotMatch(source, /IntersectionObserver|ScrollReveal|RevealScope|ChartEntrance|data-reveal/);
+  }
+  assert.doesNotMatch(styles, /reveal-enabled|reveal-delay|\[data-reveal\]/);
+  assert.doesNotMatch([analytics, chart, matchChart].join("\n"), /animationDuration=/);
 });
